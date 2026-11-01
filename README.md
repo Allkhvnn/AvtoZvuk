@@ -1,0 +1,175 @@
+# АвтоЗвук
+
+Backend учета одного магазина: Spring Boot, Java 21 (текущая настройка проекта), PostgreSQL 17.
+Frontend пока не создан. Приложение работает с REST API и сессионной авторизацией.
+
+## Готово на этом этапе
+
+- Каталог товаров: создание, изменение цены и реквизитов, отключение, остатки, низкий остаток.
+- Категории, поставщики, сотрудники и создание учетных записей OWNER/SELLER.
+- Начальные остатки с закупочной стоимостью и причиной.
+- Поступления: отдельные партии с собственной себестоимостью.
+- Продажи: скидки на позицию, смешанная оплата CASH/KASPI_PAY, FIFO, бонус по ставке сотрудника.
+- Частичные/полные возвраты, возврат непригодного товара без восстановления остатка, корректировки бонуса.
+- История операций в `audit_log`; проведенные документы не редактируются и не удаляются.
+- Защита повторных запросов поступления, продажи, возврата и начального остатка.
+
+`Product` и `ProductRepository` используют JPA. Проведение учетных документов реализовано через
+`JdbcClient` внутри Spring-транзакций: это дает явный порядок блокировок и записей журналов.
+Hibernate проверяет схему, Flyway применяет миграции. Все запросы с входными значениями параметризованы.
+
+Следующие этапы: расходы, реальные выплаты бонусов/зарплаты, финансовые отчеты, управление
+доступами и инвентаризация через API, затем React/Bootstrap. Таблицы для этих операций уже есть.
+В API пока нет сохранения черновиков: POST проводит весь документ сразу.
+
+## Запуск
+
+Нужны установленная JDK 21 и Docker Desktop.
+
+```powershell
+$env:JAVA_HOME = 'C:/Program Files/Eclipse Adoptium/jdk-21.0.9.10-hotspot'
+$env:DB_PASSWORD = 'задайте-пароль-локальной-базы'
+docker compose up -d db
+
+# Только для первого создания владельца на пустой базе:
+$env:BOOTSTRAP_OWNER_USERNAME = 'owner'
+$env:BOOTSTRAP_OWNER_PASSWORD = 'задайте-длинный-пароль-владельца'
+.\gradlew.bat bootRun
+```
+
+Путь к JDK замените на свой. Адрес API: `http://localhost:8080/api`.
+Если Gradle пытается использовать недоступную папку кеша, задайте
+`$env:GRADLE_USER_HOME = "$PWD/.gradle"` перед запуском.
+Параметры БД: `DB_URL`, `DB_USER`, `DB_PASSWORD` — подробнее в [описании базы](db/README.md).
+
+Bootstrap создает владельца и сотрудника только при отсутствии любых учетных записей.
+Пароль хешируется BCrypt и не выводится. После первого запуска уберите обе переменные
+`BOOTSTRAP_OWNER_*` из конфигурации запуска. Повторный bootstrap не меняет пароль существующего владельца.
+
+## Вход и CSRF
+
+Авторизация — серверная сессия с cookie `JSESSIONID`. CSRF-защита включена, включая вход и выход.
+Frontend должен отправлять cookie и CSRF-заголовок для POST/PUT/DELETE. После входа и выхода
+нужно снова получить токен. Сессию и токены не сохраняют в URL.
+
+Пример входа из PowerShell:
+
+```powershell
+$base = 'http://localhost:8080/api'
+$csrf = Invoke-RestMethod "$base/csrf" -SessionVariable storeSession
+$loginHeaders = @{}
+$loginHeaders[$csrf.headerName] = $csrf.token
+Invoke-RestMethod "$base/login" -Method Post -WebSession $storeSession `
+  -Headers $loginHeaders -Body @{ username = 'owner'; password = $env:BOOTSTRAP_OWNER_PASSWORD }
+$csrf = Invoke-RestMethod "$base/csrf" -WebSession $storeSession
+$headers = @{}
+$headers[$csrf.headerName] = $csrf.token
+Invoke-RestMethod "$base/me" -WebSession $storeSession
+```
+
+Вход принимает `application/x-www-form-urlencoded` (`username`, `password`), остальные POST — JSON.
+Успешный вход/выход: 204; неверный пароль: 401; недостаточно прав или неверный CSRF: 403.
+Для рабочего размещения нужен HTTPS; при нем включите `server.servlet.session.cookie.secure=true`.
+Frontend планируется на том же origin; доступ CORS для произвольных сайтов не включен.
+
+## API
+
+| Метод и путь | Доступ | Назначение |
+|---|---|---|
+| GET `/csrf` | Все | Получить CSRF-токен и имя заголовка |
+| POST `/login`, `/logout` | С CSRF | Вход/выход |
+| GET `/me` | Авторизованные | ID пользователя, сотрудник, роль |
+| GET `/products?limit=50&offset=0` | Все сотрудники | Товары, цены, остатки; без себестоимости |
+| POST `/products` | Владелец | Создать товар |
+| PUT `/products/{id}` | Владелец | Обновить реквизиты и цену |
+| POST `/products/{id}/deactivate` | Владелец | Отключить товар |
+| GET `/categories` | Все сотрудники | Категории |
+| POST `/categories` | Владелец | Создать категорию: `{"name":"Динамики"}` |
+| GET/POST `/suppliers` | Владелец | Поставщики: `{"name":"Поставщик","phone":null}` |
+| GET/POST `/employees` | Владелец | Сотрудники: `{"fullName":"Продавец","phone":null,"bonusRate":0.05}` |
+| POST `/users` | Владелец | Учетная запись: `employeeId`, `username`, `password`, `role` |
+| POST `/stock/opening` | Владелец | Начальный остаток |
+| POST `/purchases` | Владелец | Провести поступление |
+| GET `/purchases/{id}` | Владелец | Позиции поступления и себестоимость |
+| POST `/sales` | Все сотрудники | Провести продажу |
+| GET `/sales?limit=50&offset=0` | Все сотрудники | Свои продажи; владелец видит все |
+| GET `/sales/{id}` | Все сотрудники | Своя продажа; владелец видит любую |
+| POST `/returns` | Владелец | Провести возврат |
+| GET `/returns/{id}` | Владелец | Посмотреть возврат |
+
+Пока возвраты доступны только владельцу: права продавцов на возвраты еще не определены.
+Права и активность учетной записи повторно проверяются сервисами по базе, а не только по данным сессии.
+Продавец оформляет продажу от своего сотрудника; владелец может передать `sellerId` другого активного сотрудника.
+
+Создание документа возвращает `201 {"id":123}`. Детали доступны отдельным GET. Повтор того же
+запроса также возвращает тот же ID и 201, не выполняя операцию повторно.
+Ошибки данных — 400, отсутствие записи — 404, конфликт/нехватка товара — 409.
+Ошибки контроллеров возвращаются в формате ProblemDetail; ошибки фильтров входа/CSRF — HTTP-статусом.
+
+## Примеры JSON
+
+Товар (`POST /products`):
+
+```json
+{"name":"Pioneer TS-A1670F","sku":"PIONEER-A1670","barcode":null,"categoryId":null,"sellingPrice":25000.00,"lowStockThreshold":2}
+```
+
+Начальный остаток (`POST /stock/opening`):
+
+```json
+{"requestKey":"e1b8fe12-f253-4bdc-b3b4-f292f5ce2d10","productId":1,"quantity":5,"unitCost":15000.00,"reason":"Перенос остатков из тетради"}
+```
+
+Поступление (`POST /purchases`):
+
+```json
+{"requestKey":"20140275-c77c-4078-834f-08641c2cfa14","supplierId":1,"items":[{"productId":1,"quantity":3,"unitCost":16000.00}]}
+```
+
+Продажа (`POST /sales`):
+
+```json
+{"requestKey":"299142cb-f927-4d40-9e59-bc1a5c1e47da","sellerId":null,"items":[{"productId":1,"quantity":2,"unitPrice":25000.00,"discountAmount":1000.00}],"payments":[{"method":"CASH","amount":20000.00},{"method":"KASPI_PAY","amount":29000.00}]}
+```
+
+Скидка 1000 относится ко всей позиции: итог 49000, бонус при ставке 5% — 2450.
+
+Возврат (`POST /returns`): ID `saleItemId` берется из `items` ответа `GET /sales/{id}`.
+
+```json
+{"requestKey":"7853e116-3647-419f-b75a-073199d37d2b","saleId":1,"reason":"Возврат покупателя","items":[{"saleItemId":1,"quantity":1,"restock":true}],"payments":[{"method":"KASPI_PAY","amount":24500.00}]}
+```
+
+Сумму возврата считает сервер по исходной скидке. Переданные суммы выплат должны точно совпадать с расчетом.
+`restock=false` используется для непригодного товара. Последующие возвраты распределяются по порядку
+исходных списаний, включая единицы, возвращенные без восстановления склада.
+
+Для отправки JSON из PowerShell:
+
+```powershell
+$body = @{ name = 'Динамики' } | ConvertTo-Json
+Invoke-RestMethod "$base/categories" -Method Post -WebSession $storeSession `
+  -Headers $headers -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body))
+```
+
+Каждой новой учетной операции нужен новый UUID `requestKey`. При сетевой ошибке повторяют **тот же
+запрос с прежним UUID**, а не создают новый. Другие данные с прежним UUID возвращают 409.
+Порядок позиций и представление десятичных чисел должны сохраняться при повторе.
+В рамках одного документа товар/позиция возврата и способ оплаты не должны повторяться.
+Если итог равен нулю, `payments` должен быть пустым массивом.
+
+## Проверки
+
+```powershell
+.\gradlew.bat test
+.\gradlew.bat bootJar
+powershell -ExecutionPolicy Bypass -File .\db\check.ps1
+```
+
+Интеграционные тесты требуют Docker. Testcontainers запускает отдельную PostgreSQL 17, Flyway
+применяет все миграции, Hibernate проверяет JPA-модель. Рабочая БД в тестах не используется.
+Проверяются FIFO, смешанная оплата, возвраты и округление бонусов, откат ошибочных операций,
+идемпотентность, одновременные продажи, роли, вход, CSRF и валидация HTTP-запросов.
+
+Для production еще нужны управление секретами, отдельные права БД, резервное копирование,
+лимиты попыток входа и конфигурация HTTPS. Подробные правила учета: [db/README.md](db/README.md).
