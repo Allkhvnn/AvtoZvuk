@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +23,8 @@ public final class Commands {
     }
     public enum Role { OWNER, SELLER }
     public enum PaymentMethod { CASH, KASPI_PAY }
+    public enum FinanceMethod { CASH, KASPI_PAY, BANK_TRANSFER }
+    public enum StaffPaymentType { BONUS, SALARY }
     public record Product(@NotBlank @Size(max = 250) String name, @NotBlank @Size(max = 100) String sku,
                           @Size(min = 1, max = 100) String barcode, @Positive Long categoryId,
                           @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal sellingPrice,
@@ -47,4 +50,22 @@ public final class Commands {
     public record OpeningStock(@NotNull UUID requestKey, @Positive long productId, @Min(1) @Max(1000000) int quantity,
                                @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal unitCost,
                                @NotBlank @Size(max = 2000) String reason) {}
+    public record Expense(@NotNull UUID requestKey, @Positive long categoryId,
+                          @NotNull @DecimalMin(value = "0", inclusive = false)
+                          @Digits(integer = 17, fraction = 2) BigDecimal amount,
+                          @NotNull FinanceMethod method, @NotBlank @Size(max = 2000) String description,
+                          @PastOrPresent Instant incurredAt) {}
+    public record Reversal(@NotNull UUID requestKey, @NotBlank @Size(max = 2000) String reason) {}
+    public record BonusAdjustment(@NotNull UUID requestKey, @Positive long employeeId,
+                                  @NotNull @DecimalMin("-99999999999999999.99")
+                                  @DecimalMax("99999999999999999.99") @Digits(integer = 17, fraction = 2) BigDecimal amount,
+                                  @NotBlank @Size(max = 2000) String reason) {}
+    public record StaffPayment(@NotNull UUID requestKey, @Positive long employeeId,
+                               @NotNull StaffPaymentType type,
+                               @NotNull @DecimalMin(value = "0", inclusive = false)
+                               @Digits(integer = 17, fraction = 2) BigDecimal amount,
+                               @NotNull FinanceMethod method, @NotBlank @Size(max = 2000) String reason,
+                               @PastOrPresent Instant paidAt) {}
+    public record EmployeeStatus(boolean active, @NotBlank @Size(max = 2000) String reason) {}
+    public record UserStatus(boolean active, @NotBlank @Size(max = 2000) String reason) {}
 }

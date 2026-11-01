@@ -3,6 +3,7 @@ package AvtoZvuk.kz;
 import AvtoZvuk.kz.accounting.*;
 import AvtoZvuk.kz.api.Commands;
 import AvtoZvuk.kz.catalog.CatalogService;
+import AvtoZvuk.kz.catalog.PersonnelService;
 import AvtoZvuk.kz.common.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,9 +51,12 @@ class KzApplicationTests {
     @Autowired ReturnService returns;
     @Autowired StockService stock;
     @Autowired DocumentQueries documents;
+    @Autowired FinanceService finance;
+    @Autowired PayrollService payroll;
+    @Autowired PersonnelService personnel;
     @Autowired PasswordEncoder passwords;
     @Autowired MockMvc mvc;
-    long ownerEmployee, sellerEmployee, supplier, product;
+    long ownerEmployee, sellerEmployee, ownerUser, sellerUser, supplier, product;
     String ownerName, sellerName;
 
     @BeforeEach
@@ -63,8 +67,8 @@ class KzApplicationTests {
         ownerEmployee = db.id("INSERT INTO employees(full_name) VALUES ('Test owner') RETURNING id");
         sellerEmployee = db.id("INSERT INTO employees(full_name) VALUES ('Test seller') RETURNING id");
         String hash = passwords.encode("test-password-123");
-        db.id("INSERT INTO app_users(employee_id, username, password_hash, role) VALUES (?, ?, ?, 'OWNER') RETURNING id", ownerEmployee, ownerName, hash);
-        db.id("INSERT INTO app_users(employee_id, username, password_hash, role) VALUES (?, ?, ?, 'SELLER') RETURNING id", sellerEmployee, sellerName, hash);
+        ownerUser = db.id("INSERT INTO app_users(employee_id, username, password_hash, role) VALUES (?, ?, ?, 'OWNER') RETURNING id", ownerEmployee, ownerName, hash);
+        sellerUser = db.id("INSERT INTO app_users(employee_id, username, password_hash, role) VALUES (?, ?, ?, 'SELLER') RETURNING id", sellerEmployee, sellerName, hash);
         login(ownerName);
         supplier = catalog.supplier(new Commands.Supplier("Supplier " + suffix, null));
         product = newProduct();
@@ -230,6 +234,83 @@ class KzApplicationTests {
                 .andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("unitCost"))));
     }
 
+    @Test
+    void expenseIsIdempotentAndReversalPreservesHistory() {
+        long category = finance.expenseCategory(new Commands.Named("Rent " + UUID.randomUUID()));
+        var command = new Commands.Expense(UUID.randomUUID(), category, n("150000"),
+                Commands.FinanceMethod.BANK_TRANSFER, "Monthly rent", null);
+        long expense = finance.expense(command);
+        assertThat(finance.expense(command)).isEqualTo(expense);
+        assertThat(finance.expenseTotals().get("total")).isEqualTo(n("150000.00"));
+        var reversal = new Commands.Reversal(UUID.randomUUID(), "Entered twice");
+        long reversed = finance.reverseExpense(expense, reversal);
+        assertThat(finance.reverseExpense(expense, reversal)).isEqualTo(reversed);
+        assertThat(finance.expenseTotals().get("total")).isEqualTo(n("0.00"));
+        assertThat(finance.expenses(10, 0)).filteredOn(row -> Objects.equals(row.get("id"), expense))
+                .singleElement().satisfies(row -> assertThat(row.get("reversed")).isEqualTo(true));
+        assertThatThrownBy(() -> finance.reverseExpense(expense,
+                new Commands.Reversal(UUID.randomUUID(), "Again")))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("уже отменен");
+    }
+
+    @Test
+    void bonusAdjustmentsPaymentsSalaryAndReversalAreSeparate() {
+        var adjustment = new Commands.BonusAdjustment(UUID.randomUUID(), sellerEmployee, n("100"), "Opening bonus balance");
+        long adjustmentId = payroll.adjustBonus(adjustment);
+        assertThat(payroll.adjustBonus(adjustment)).isEqualTo(adjustmentId);
+        var bonusPayment = new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
+                Commands.StaffPaymentType.BONUS, n("60"), Commands.FinanceMethod.CASH, "Bonus payout", null);
+        long payment = payroll.pay(bonusPayment);
+        assertThat(payroll.pay(bonusPayment)).isEqualTo(payment);
+        assertThat(balance(sellerEmployee)).isEqualByComparingTo("40");
+        assertThatThrownBy(() -> payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
+                Commands.StaffPaymentType.BONUS, n("40.01"), Commands.FinanceMethod.CASH, "Too much", null)))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("превышает");
+        long salary = payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
+                Commands.StaffPaymentType.SALARY, n("200000"), Commands.FinanceMethod.BANK_TRANSFER, "Salary", null));
+        assertThat(balance(sellerEmployee)).isEqualByComparingTo("40");
+        var reversal = new Commands.Reversal(UUID.randomUUID(), "Wrong cash box");
+        long reverse = payroll.reversePayment(payment, reversal);
+        assertThat(payroll.reversePayment(payment, reversal)).isEqualTo(reverse);
+        assertThat(balance(sellerEmployee)).isEqualByComparingTo("100");
+        assertThat(payroll.payments(sellerEmployee, 10, 0)).extracting(row -> row.get("id"))
+                .contains(payment, salary, reverse);
+    }
+
+    @Test
+    void concurrentBonusPaymentsCannotExceedBalance() throws Exception {
+        payroll.adjustBonus(new Commands.BonusAdjustment(UUID.randomUUID(), sellerEmployee, n("100"), "Competition test"));
+        var outcomes = concurrently(
+                () -> payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
+                        Commands.StaffPaymentType.BONUS, n("70"), Commands.FinanceMethod.CASH, "First", null)),
+                () -> payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
+                        Commands.StaffPaymentType.BONUS, n("70"), Commands.FinanceMethod.CASH, "Second", null)));
+        assertThat(outcomes.stream().filter(Long.class::isInstance).count()).isEqualTo(1);
+        assertThat(outcomes.stream().filter(BusinessException.class::isInstance).count()).isEqualTo(1);
+        assertThat(balance(sellerEmployee)).isEqualByComparingTo("30");
+    }
+
+    @Test
+    void personnelStatusDisablesAccountsAndRequiresExplicitReactivation() {
+        personnel.updateEmployee(sellerEmployee, new Commands.Employee("Updated seller", "+77000000000", n("0.075")));
+        assertThat(catalog.employees()).filteredOn(row -> Objects.equals(row.get("id"), sellerEmployee))
+                .singleElement().satisfies(row -> assertThat(row.get("bonusRate")).isEqualTo(n("0.0750")));
+        personnel.employeeStatus(sellerEmployee, new Commands.EmployeeStatus(false, "Employee left"));
+        assertThat(db.one("SELECT active FROM app_users WHERE id = ?", sellerUser).get("active")).isEqualTo(false);
+        login(sellerName);
+        assertThatThrownBy(() -> documents.sales(10, 0)).isInstanceOf(BusinessException.class);
+        login(ownerName);
+        assertThatThrownBy(() -> personnel.userStatus(sellerUser, new Commands.UserStatus(true, "Return")))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("Сначала активируйте");
+        personnel.employeeStatus(sellerEmployee, new Commands.EmployeeStatus(true, "Rehired"));
+        personnel.userStatus(sellerUser, new Commands.UserStatus(true, "Access restored"));
+        login(sellerName);
+        assertThat(documents.sales(10, 0)).isEmpty();
+        login(ownerName);
+        assertThatThrownBy(() -> personnel.userStatus(ownerUser, new Commands.UserStatus(false, "Self")))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("собственную");
+    }
+
     private long newProduct() {
         return catalog.saveProduct(null, new Commands.Product("Speaker", "SKU-" + UUID.randomUUID(), null, null, n("200"), 1)).getId();
     }
@@ -237,6 +318,7 @@ class KzApplicationTests {
         return purchases.receive(new Commands.Purchase(UUID.randomUUID(), supplier, List.of(new Commands.PurchaseItem(productId, quantity, n(cost)))));
     }
     private long quantity(long productId) { return db.id("SELECT quantity FROM product_stock WHERE product_id = ?", productId); }
+    private BigDecimal balance(long employeeId) { return db.amount("SELECT balance FROM employee_bonus_balances WHERE employee_id = ?", employeeId); }
     private long line(long sale) { return ((Number) documents.sale(sale).items().getFirst().get("id")).longValue(); }
     private static BigDecimal n(String value) { return new BigDecimal(value); }
     private static Commands.Payment payment(String amount) { return new Commands.Payment(Commands.PaymentMethod.CASH, n(amount)); }

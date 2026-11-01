@@ -15,7 +15,8 @@ public class DocumentSupport {
 
     public enum Kind {
         PURCHASE("purchases", "P"), SALE("sales", "S"), RETURN("sale_returns", "R"),
-        OPENING("stock_adjustments", "A");
+        OPENING("stock_adjustments", "A"), EXPENSE("expenses", "E"),
+        STAFF_PAYMENT("salary_payments", "SP"), BONUS_ADJUSTMENT("bonus_entries", "BA");
         final String table;
         final String prefix;
         Kind(String table, String prefix) { this.table = table; this.prefix = prefix; }

@@ -79,6 +79,7 @@ public class ReturnService {
         BigDecimal before = soldTotal.subtract(priorRefunds);
         BigDecimal rate = money(sale, "bonus_rate");
         BigDecimal correction = Rules.money(before.subtract(total).multiply(rate)).subtract(Rules.money(before.multiply(rate)));
+        db.one("SELECT id FROM employees WHERE id = ? FOR SHARE", number(sale, "seller_id"));
         db.update("""
                 INSERT INTO bonus_entries(employee_id, type, return_id, amount, reason, created_by)
                 VALUES (?, 'RETURN', ?, ?, ?, ?)
