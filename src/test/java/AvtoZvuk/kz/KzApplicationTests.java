@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
@@ -54,6 +55,7 @@ class KzApplicationTests {
     @Autowired FinanceService finance;
     @Autowired PayrollService payroll;
     @Autowired PersonnelService personnel;
+    @Autowired ReportService reports;
     @Autowired PasswordEncoder passwords;
     @Autowired MockMvc mvc;
     long ownerEmployee, sellerEmployee, ownerUser, sellerUser, supplier, product;
@@ -311,6 +313,67 @@ class KzApplicationTests {
                 .isInstanceOf(BusinessException.class).hasMessageContaining("собственную");
     }
 
+    @Test
+    void reportsReconcileRevenueCostExpensesPaymentsProductsAndEmployees() {
+        LocalDate today = LocalDate.now(ReportService.STORE_ZONE);
+        var before = reports.summary(today, today);
+        receive(product, 2, "100");
+        long sale = sales.sell(new Commands.Sale(UUID.randomUUID(), sellerEmployee,
+                List.of(new Commands.SaleItem(product, 2, n("200"), n("20"))), List.of(payment("380"))));
+        returns.returnSale(returnCommand(sale, line(sale), "190", true));
+        long expenseCategory = finance.expenseCategory(new Commands.Named("Report expense " + UUID.randomUUID()));
+        finance.expense(new Commands.Expense(UUID.randomUUID(), expenseCategory, n("50"),
+                Commands.FinanceMethod.CASH, "Report expense", null));
+        payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
+                Commands.StaffPaymentType.BONUS, n("5"), Commands.FinanceMethod.CASH, "Bonus report", null));
+        payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
+                Commands.StaffPaymentType.SALARY, n("30"), Commands.FinanceMethod.CASH, "Salary report", null));
+
+        var after = reports.summary(today, today);
+        assertDelta(before.salesRevenue(), after.salesRevenue(), "380");
+        assertDelta(before.returns(), after.returns(), "190");
+        assertDelta(before.netRevenue(), after.netRevenue(), "190");
+        assertDelta(before.discounts(), after.discounts(), "20");
+        assertDelta(before.saleCost(), after.saleCost(), "200");
+        assertDelta(before.restoredCost(), after.restoredCost(), "100");
+        assertDelta(before.netCost(), after.netCost(), "100");
+        assertDelta(before.grossProfit(), after.grossProfit(), "90");
+        assertDelta(before.expenses(), after.expenses(), "50");
+        assertDelta(before.grossProfitAfterExpenses(), after.grossProfitAfterExpenses(), "40");
+        assertDelta(before.bonusAccrued(), after.bonusAccrued(), "9.50");
+        assertDelta(before.bonusPaid(), after.bonusPaid(), "5");
+        assertDelta(before.salaryPaid(), after.salaryPaid(), "30");
+
+        assertThat(reports.products(today, today)).filteredOn(row -> Objects.equals(row.get("productId"), product))
+                .singleElement().satisfies(row -> {
+                    assertThat(row.get("netQuantity")).isEqualTo(1L);
+                    assertThat(row.get("netRevenue")).isEqualTo(n("190.00"));
+                    assertThat(row.get("netCost")).isEqualTo(n("100.00"));
+                    assertThat(row.get("grossProfit")).isEqualTo(n("90.00"));
+                });
+        assertThat(reports.employees(today, today)).filteredOn(row -> Objects.equals(row.get("employeeId"), sellerEmployee))
+                .singleElement().satisfies(row -> {
+                    assertThat(row.get("salesRevenue")).isEqualTo(n("380.00"));
+                    assertThat(row.get("returns")).isEqualTo(n("190.00"));
+                    assertThat(row.get("bonusAccrued")).isEqualTo(n("9.50"));
+                    assertThat(row.get("bonusPaid")).isEqualTo(n("5.00"));
+                });
+        assertThat(reports.lowStock()).extracting(row -> row.get("productId")).contains(product);
+        assertThat(reports.paymentMethods(today, today)).filteredOn(row -> "CASH".equals(row.get("method")))
+                .singleElement().satisfies(row -> assertThat((BigDecimal) row.get("net")).isGreaterThanOrEqualTo(n("190")));
+    }
+
+    @Test
+    void reportPeriodAndRoleAreValidated() {
+        LocalDate today = LocalDate.now(ReportService.STORE_ZONE);
+        assertThatThrownBy(() -> reports.summary(today, today.minusDays(1)))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("раньше");
+        assertThatThrownBy(() -> reports.summary(today.minusDays(400), today))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("Период");
+        login(sellerName);
+        assertThatThrownBy(() -> reports.summary(today, today)).isInstanceOf(BusinessException.class);
+    }
+
     private long newProduct() {
         return catalog.saveProduct(null, new Commands.Product("Speaker", "SKU-" + UUID.randomUUID(), null, null, n("200"), 1)).getId();
     }
@@ -319,6 +382,9 @@ class KzApplicationTests {
     }
     private long quantity(long productId) { return db.id("SELECT quantity FROM product_stock WHERE product_id = ?", productId); }
     private BigDecimal balance(long employeeId) { return db.amount("SELECT balance FROM employee_bonus_balances WHERE employee_id = ?", employeeId); }
+    private static void assertDelta(BigDecimal before, BigDecimal after, String expected) {
+        assertThat(after.subtract(before)).isEqualByComparingTo(expected);
+    }
     private long line(long sale) { return ((Number) documents.sale(sale).items().getFirst().get("id")).longValue(); }
     private static BigDecimal n(String value) { return new BigDecimal(value); }
     private static Commands.Payment payment(String amount) { return new Commands.Payment(Commands.PaymentMethod.CASH, n(amount)); }

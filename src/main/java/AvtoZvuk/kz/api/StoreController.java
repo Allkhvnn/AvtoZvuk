@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api")
@@ -27,6 +28,7 @@ public class StoreController {
     private final FinanceService finance;
     private final PayrollService payroll;
     private final PersonnelService personnel;
+    private final ReportService reports;
     private final CurrentActor actors;
 
     @GetMapping("/csrf")
@@ -88,4 +90,9 @@ public class StoreController {
     @PostMapping("/staff-payments/{id}/reversal") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> reverseStaffPayment(@PathVariable long id, @Valid @RequestBody Commands.Reversal command) { return Map.of("id", payroll.reversePayment(id, command)); }
     @GetMapping("/employees/{id}/staff-payments") List<Map<String, Object>> staffPayments(@PathVariable long id, @RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return payroll.payments(id, limit, offset); }
+    @GetMapping("/reports/summary") ReportService.Summary reportSummary(@RequestParam LocalDate from, @RequestParam LocalDate to) { return reports.summary(from, to); }
+    @GetMapping("/reports/payment-methods") List<Map<String, Object>> reportPaymentMethods(@RequestParam LocalDate from, @RequestParam LocalDate to) { return reports.paymentMethods(from, to); }
+    @GetMapping("/reports/employees") List<Map<String, Object>> reportEmployees(@RequestParam LocalDate from, @RequestParam LocalDate to) { return reports.employees(from, to); }
+    @GetMapping("/reports/products") List<Map<String, Object>> reportProducts(@RequestParam LocalDate from, @RequestParam LocalDate to) { return reports.products(from, to); }
+    @GetMapping("/reports/low-stock") List<Map<String, Object>> reportLowStock() { return reports.lowStock(); }
 }
