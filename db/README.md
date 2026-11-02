@@ -162,10 +162,44 @@ Backend рассчитывает сумму частичного возврат�
 
 ## Резервные копии
 
-Для рабочего сервера настроить ежедневный `pg_dump -Fc`, хранение копии вне сервера
-и регулярное восстановление в отдельную тестовую базу через `pg_restore`.
-Docker volume обеспечивает сохранность при пересоздании контейнера, но не является резервной копией.
-Автоматическое расписание и production-доступы на этом этапе не настроены.
+Docker volume обеспечивает сохранность при перезапуске и пересоздании контейнера, но не является
+резервной копией. Скрипты ниже создают независимый архив `pg_dump -Fc`, проверяют его через
+`pg_restore -l`, записывают SHA-256 и удаляют копии старше заданного срока.
+
+Ручная копия с хранением 30 дней:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\db\backup.ps1
+```
+
+Для рабочего магазина укажите каталог на другом физическом диске или в синхронизируемой папке:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\db\backup.ps1 `
+  -BackupDirectory 'E:\AvtoZvuk-backups' -RetentionDays 60
+```
+
+Установка ежедневной задачи Windows на 02:00:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\db\install-backup-task.ps1 `
+  -BackupDirectory 'E:\AvtoZvuk-backups' -DailyAt '02:00' -RetentionDays 60
+```
+
+Задача запускается в интерактивной сессии владельца: компьютер, Docker Desktop и пользовательская
+сессия должны работать. На Linux-сервере `backup.ps1` следует вызывать ежедневным cron/systemd timer.
+
+Восстановление является разрушительной операцией и требует явного флага. Перед заменой базы скрипт
+автоматически создаёт страховочную копию текущего состояния в `backups/before-restore`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\db\restore.ps1 `
+  -BackupFile 'E:\AvtoZvuk-backups\avtozvuk-20261102-020000.dump' `
+  -ConfirmDatabaseReplacement
+```
+
+После восстановления перезапустите backend. Не храните единственную копию на том же диске, где
+находится Docker volume. Не реже раза в месяц проверяйте восстановление последней копии на тестовом сервере.
 
 Технические основания: [ограничения PostgreSQL](https://www.postgresql.org/docs/17/ddl-constraints.html),
 [PostgreSQL-модуль Flyway](https://documentation.red-gate.com/fd/postgresql-database-277579325.html).
