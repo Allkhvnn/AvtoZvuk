@@ -353,6 +353,43 @@ td strong { font-weight: 700; }
 .detail-lines span { color: var(--muted); font-size: 8px; }
 .detail-total { display: flex; justify-content: space-between; padding: 18px 26px 22px; font-size: 11px; }
 .detail-total strong { font-size: 17px; }
+.warehouse-tabs { display: inline-flex; gap: 4px; margin-bottom: 16px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.warehouse-tabs button { padding: 9px 14px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; font-size: 9px; font-weight: 700; }
+.warehouse-tabs button.active { color: var(--accent-dark); background: var(--accent-soft); }
+.warehouse-form { padding-bottom: 0; }
+.warehouse-form form { padding: 0 20px; }
+.inventory-lines { display: grid; gap: 8px; margin-top: 12px; }
+.inventory-line { display: grid; grid-template-columns: minmax(150px,1fr) 75px 90px 75px minmax(110px,.7fr) 28px; align-items: end; gap: 9px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; }
+.inventory-line > div:first-child { align-self: center; display: grid; gap: 4px; min-width: 0; }
+.inventory-line > div:first-child strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.inventory-line > div:first-child span, .system-count span, .count-difference span { color: var(--muted); font-size: 8px; }
+.inventory-line label { display: grid; gap: 4px; color: var(--muted); font-size: 8px; font-weight: 700; }
+.inventory-line input { width: 100%; height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); font-size: 9px; }
+.system-count, .count-difference { align-self: center; display: grid; gap: 4px; }
+.count-difference.negative strong, .negative-text { color: #c53b30; }
+.count-difference.positive strong, .positive-text { color: var(--green); }
+.inventory-reason { margin-top: 14px; }
+.inventory-reason textarea, .writeoff-panel textarea { min-height: 65px; resize: vertical; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-muted); font-size: 10px; }
+.warehouse-submit { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 16px -20px 0; padding: 16px 20px; border-top: 1px solid var(--line); }
+.warehouse-submit span { color: var(--muted); font-size: 9px; }
+.inventory-history { margin-top: 16px; }
+.writeoff-panel { max-width: 760px; }
+.writeoff-panel form { display: grid; grid-template-columns: 1fr 140px; gap: 15px; padding: 4px 0 0; }
+.writeoff-panel .wide, .writeoff-warning { grid-column: 1 / -1; }
+.writeoff-panel form > .primary { grid-column: 2; }
+.writeoff-warning { display: grid; gap: 4px; padding: 13px 14px; border-radius: 9px; color: #8d342c; background: #fff2f0; font-size: 9px; }
+.writeoff-warning span { color: #a96059; }
+.movement-select { width: min(340px,100%); }
+.movement-list { display: grid; margin-top: 12px; }
+.movement-row { display: grid; grid-template-columns: 34px minmax(180px,1fr) 130px 70px; align-items: center; gap: 12px; padding: 13px 4px; border-top: 1px solid var(--line); }
+.movement-sign { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; font-size: 15px; font-weight: 700; }
+.movement-sign.in { color: var(--green); background: var(--green-soft); }
+.movement-sign.out { color: #c53b30; background: #fff2f0; }
+.movement-row > div:nth-child(2), .movement-row > div:nth-child(3), .movement-balance { display: grid; gap: 4px; }
+.movement-row strong { font-size: 9px; }
+.movement-row span { color: var(--muted); font-size: 8px; }
+.movement-balance { text-align: right; }
+.movement-balance strong { font-size: 13px; }
 
 @media (max-width: 600px) {
   .sales-heading { align-items: flex-start; }
@@ -369,4 +406,17 @@ td strong { font-weight: 700; }
   .purchase-line .sale-product { grid-column: 1 / -1; }
   .purchase-line .remove-line { position: absolute; top: 10px; right: 10px; }
   .purchase-detail { min-height: 100vh; border-radius: 0; }
+  .warehouse-tabs { width: 100%; overflow-x: auto; }
+  .warehouse-tabs button { flex: 1 0 auto; }
+  .inventory-line { position: relative; grid-template-columns: 1fr 1fr; }
+  .inventory-line > div:first-child { grid-column: 1 / -1; }
+  .inventory-line .remove-line { position: absolute; top: 10px; right: 10px; }
+  .warehouse-submit { align-items: stretch; flex-direction: column; }
+  .writeoff-panel form { grid-template-columns: 1fr; }
+  .writeoff-panel .wide, .writeoff-warning, .writeoff-panel form > .primary { grid-column: auto; }
+  .movement-panel .panel-head { align-items: stretch; }
+  .movement-select { width: 100%; }
+  .movement-row { grid-template-columns: 34px 1fr 70px; }
+  .movement-row > div:nth-child(3) { text-align: right; }
+  .movement-balance { grid-column: 2 / -1; }
 }

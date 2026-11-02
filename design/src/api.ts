@@ -10,6 +10,8 @@ export type Supplier = { id: number; name: string; phone: string | null };
 export type PurchaseSummary = { id: number; documentNumber: string; status: string; purchasedAt: string; supplierId: number; supplierName: string; itemCount: number; total: number };
 export type PurchaseDocument = { id: number; documentNumber: string; status: string; total: number; items: { id: number; productId: number; quantity: number; unitCost: number; lineTotal: number }[] };
 export type NewPurchase = { requestKey: string; supplierId: number; items: { productId: number; quantity: number; unitCost: number }[] };
+export type InventorySummary = { id: number; operationType: string; reason: string; createdAt: string; itemCount: number; absoluteDifference: number };
+export type StockMovement = { id: number; type: string; adjustmentType: string | null; quantity: number; unitCost: number; balance: number; reason: string; createdAt: string; username: string; purchaseItemId: number | null; saleId: number | null; returnItemId: number | null; adjustmentId: number | null };
 export type Employee = { id: number; fullName: string; active: boolean };
 export type NewSale = {
   requestKey: string;
@@ -84,6 +86,10 @@ export const api = {
   purchases: () => request<PurchaseSummary[]>('/purchases?limit=100&offset=0'),
   purchase: (id: number) => request<PurchaseDocument>(`/purchases/${id}`),
   createPurchase: (purchase: NewPurchase) => mutate<{ id: number }>('/purchases', purchase),
+  inventories: () => request<InventorySummary[]>('/inventories?limit=100&offset=0'),
+  createInventory: (reason: string, items: { productId: number; actualQuantity: number; excessUnitCost: number | null }[]) => mutate<{ id: number }>('/inventories', { requestKey: crypto.randomUUID(), reason, items }),
+  writeOff: (productId: number, quantity: number, reason: string) => mutate<{ id: number }>('/stock/write-offs', { requestKey: crypto.randomUUID(), productId, quantity, reason }),
+  stockMovements: (productId: number) => request<StockMovement[]>(`/products/${productId}/stock-movements?limit=100&offset=0`),
   employees: () => request<Employee[]>('/employees'),
   createSale: (sale: NewSale) => mutate<{ id: number }>('/sales', sale),
 };
