@@ -2,6 +2,14 @@ export type Actor = { id: number; employeeId: number | null; role: 'OWNER' | 'SE
 export type Summary = { from: string; to: string; salesRevenue: number; returns: number; netRevenue: number; discounts: number; netCost: number; grossProfit: number; expenses: number; grossProfitAfterExpenses: number };
 export type Sale = { id: number; documentNumber: string; sellerId: number; status: string; soldAt: string; total: number };
 export type LowStock = { productId: number; name: string; sku: string; quantity: number; lowStockThreshold: number };
+export type Product = { id: number; name: string; sku: string; barcode: string | null; sellingPrice: number; quantity: number; active: boolean };
+export type Employee = { id: number; fullName: string; active: boolean };
+export type NewSale = {
+  requestKey: string;
+  sellerId: number | null;
+  items: { productId: number; quantity: number; unitPrice: number; discountAmount: number }[];
+  payments: { method: 'CASH' | 'KASPI_PAY'; amount: number }[];
+};
 type Csrf = { token: string; headerName: string };
 
 let csrf: Csrf | null = null;
@@ -20,6 +28,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!response.ok) throw new Error(await readError(response));
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+async function mutate<T>(path: string, body: unknown): Promise<T> {
+  const token = await getCsrf();
+  return request<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', [token.headerName]: token.token },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function getCsrf(refresh = false) {
@@ -48,4 +65,7 @@ export const api = {
   sales: (limit = 6) => request<Sale[]>(`/sales?limit=${limit}&offset=0`),
   summary: (from: string, to: string) => request<Summary>(`/reports/summary?from=${from}&to=${to}`),
   lowStock: () => request<LowStock[]>('/reports/low-stock'),
+  products: () => request<Product[]>('/products?limit=100&offset=0'),
+  employees: () => request<Employee[]>('/employees'),
+  createSale: (sale: NewSale) => mutate<{ id: number }>('/sales', sale),
 };
