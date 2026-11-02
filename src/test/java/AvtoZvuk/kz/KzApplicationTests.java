@@ -156,6 +156,7 @@ class KzApplicationTests {
         var purchase = new Commands.Purchase(UUID.randomUUID(), supplier, List.of(new Commands.PurchaseItem(product, 1, n("100"))));
         long receipt = purchases.receive(purchase);
         assertThat(purchases.receive(purchase)).isEqualTo(receipt);
+        assertThat(documents.purchases(50, 0)).anyMatch(row -> Database.number(row, "id") == receipt);
         var command = saleCommand(UUID.randomUUID(), product, 1, "200", "200");
         long sale = sales.sell(command);
         assertThat(sales.sell(command)).isEqualTo(sale);

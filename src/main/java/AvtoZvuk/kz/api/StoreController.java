@@ -65,6 +65,7 @@ public class StoreController {
     Map<String, Long> opening(@Valid @RequestBody Commands.OpeningStock command) { return Map.of("id", stock.opening(command)); }
     @PostMapping("/purchases") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> purchase(@Valid @RequestBody Commands.Purchase command) { return Map.of("id", purchases.receive(command)); }
+    @GetMapping("/purchases") List<Map<String, Object>> purchases(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return documents.purchases(limit, offset); }
     @GetMapping("/purchases/{id}") DocumentQueries.Document purchase(@PathVariable long id) { return documents.purchase(id); }
     @PostMapping("/sales") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> sale(@Valid @RequestBody Commands.Sale command) { return Map.of("id", sales.sell(command)); }

@@ -6,6 +6,10 @@ export type Product = { id: number; categoryId: number | null; name: string; sku
 export type Category = { id: number; name: string };
 export type ProductInput = { name: string; sku: string; barcode: string | null; categoryId: number | null; sellingPrice: number; lowStockThreshold: number };
 export type OpeningStockInput = { requestKey: string; productId: number; quantity: number; unitCost: number; reason: string };
+export type Supplier = { id: number; name: string; phone: string | null };
+export type PurchaseSummary = { id: number; documentNumber: string; status: string; purchasedAt: string; supplierId: number; supplierName: string; itemCount: number; total: number };
+export type PurchaseDocument = { id: number; documentNumber: string; status: string; total: number; items: { id: number; productId: number; quantity: number; unitCost: number; lineTotal: number }[] };
+export type NewPurchase = { requestKey: string; supplierId: number; items: { productId: number; quantity: number; unitCost: number }[] };
 export type Employee = { id: number; fullName: string; active: boolean };
 export type NewSale = {
   requestKey: string;
@@ -75,6 +79,11 @@ export const api = {
   updateProduct: (id: number, product: ProductInput) => mutate<void>(`/products/${id}`, product, 'PUT'),
   deactivateProduct: (id: number) => mutate<void>(`/products/${id}/deactivate`, null),
   openingStock: (opening: OpeningStockInput) => mutate<{ id: number }>('/stock/opening', opening),
+  suppliers: () => request<Supplier[]>('/suppliers'),
+  createSupplier: (name: string, phone: string | null) => mutate<{ id: number }>('/suppliers', { name, phone }),
+  purchases: () => request<PurchaseSummary[]>('/purchases?limit=100&offset=0'),
+  purchase: (id: number) => request<PurchaseDocument>(`/purchases/${id}`),
+  createPurchase: (purchase: NewPurchase) => mutate<{ id: number }>('/purchases', purchase),
   employees: () => request<Employee[]>('/employees'),
   createSale: (sale: NewSale) => mutate<{ id: number }>('/sales', sale),
 };

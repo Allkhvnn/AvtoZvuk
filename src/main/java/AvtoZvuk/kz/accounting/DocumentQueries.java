@@ -65,4 +65,18 @@ public class DocumentQueries {
                 ORDER BY s.id DESC LIMIT ? OFFSET ?
                 """, actor.owner(), actor.employeeId(), limit, offset);
     }
+
+    public List<Map<String, Object>> purchases(int limit, int offset) {
+        actors.owner();
+        if (limit < 1 || limit > 100 || offset < 0) throw BusinessException.invalid("Некорректная страница");
+        return db.rows("""
+                SELECT p.id, p.document_number AS "documentNumber", p.status,
+                    p.purchased_at AS "purchasedAt", p.supplier_id AS "supplierId", s.name AS "supplierName",
+                    count(i.id) AS "itemCount", COALESCE(sum(i.line_total), 0)::numeric(19,2) AS total
+                FROM purchases p JOIN suppliers s ON s.id = p.supplier_id
+                LEFT JOIN purchase_items i ON i.purchase_id = p.id
+                WHERE p.status = 'POSTED'
+                GROUP BY p.id, s.name ORDER BY p.purchased_at DESC, p.id DESC LIMIT ? OFFSET ?
+                """, limit, offset);
+    }
 }
