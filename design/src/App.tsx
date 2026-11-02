@@ -5,6 +5,7 @@ import { ProductsPage } from './ProductsPage';
 import { PurchasesPage } from './PurchasesPage';
 import { StockPage } from './StockPage';
 import { EmployeesPage } from './EmployeesPage';
+import { FinancePage } from './FinancePage';
 
 type IconName = 'grid' | 'cart' | 'box' | 'users' | 'chart' | 'settings' | 'search' | 'bell' | 'plus' | 'trend' | 'wallet' | 'receipt' | 'warehouse' | 'chevron';
 const icons: Record<IconName, ReactNode> = {
@@ -64,7 +65,7 @@ export default function App() {
   const [stock, setStock] = useState<LowStock[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
-  const [activePage, setActivePage] = useState<'dashboard' | 'sales' | 'products' | 'purchases' | 'stock' | 'employees'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'sales' | 'products' | 'purchases' | 'stock' | 'employees' | 'finance'>('dashboard');
   const [createSaleRequest, setCreateSaleRequest] = useState(0);
 
   useEffect(() => { api.me().then(setActor).catch(() => setActor(null)).finally(() => setChecking(false)); }, []);
@@ -91,7 +92,7 @@ export default function App() {
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><span>AZ</span></div><div><div className="brand-name">Avto<span>Zvuk</span></div><div className="brand-subtitle">учёт магазина</div></div></div>
       <nav className="nav"><p className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</p>
-        {[['Обзор','grid','dashboard'],['Продажи','cart','sales'],['Товары','box','products'],['Поступления','receipt','purchases'],['Склад','warehouse','stock'],['Сотрудники','users','employees'],['Отчёты','chart','']].filter(([, , page]) => !['purchases','stock','employees'].includes(page) || actor.role === 'OWNER').map(([label, icon, page]) => <button onClick={() => page && setActivePage(page as 'dashboard' | 'sales' | 'products' | 'purchases' | 'stock' | 'employees')} className={`button nav-item ${activePage === page ? 'active' : ''}`} key={label}><Icon name={icon as IconName}/><span>{label}</span></button>)}
+        {[['Обзор','grid','dashboard'],['Продажи','cart','sales'],['Товары','box','products'],['Поступления','receipt','purchases'],['Склад','warehouse','stock'],['Сотрудники','users','employees'],['Отчёты','chart','finance']].filter(([, , page]) => !['purchases','stock','employees','finance'].includes(page) || actor.role === 'OWNER').map(([label, icon, page]) => <button onClick={() => page && setActivePage(page as typeof activePage)} className={`button nav-item ${activePage === page ? 'active' : ''}`} key={label}><Icon name={icon as IconName}/><span>{label}</span></button>)}
         <p className="nav-caption secondary">УПРАВЛЕНИЕ</p><button className="button nav-item"><Icon name="settings"/><span>Настройки</span></button>
       </nav>
       <div className="sidebar-card"><div className="pulse-dot"/><div><strong>Система работает</strong><span>Backend подключён</span></div></div>
@@ -99,7 +100,7 @@ export default function App() {
     </aside>
     <main className="main"><header className="topbar"><div className="mobile-brand">AZ</div><div className="search"><Icon name="search" size={18}/><input className="input" placeholder={activePage === 'products' || activePage === 'stock' ? 'Поиск по товарам или артикулу…' : activePage === 'purchases' ? 'Поиск по поставщику или документу…' : activePage === 'employees' ? 'Поиск по сотруднику или логину…' : 'Поиск по продажам…'} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="header-actions"><button className="button icon-button" aria-label="Уведомления"><Icon name="bell"/></button><button className="button primary" onClick={() => { setActivePage('sales'); setCreateSaleRequest(value => value + 1); }}><Icon name="plus" size={18}/>Новая продажа</button></div></header>
       <div className="content">{error && <div className="page-error">Не удалось загрузить данные: {error}</div>}
-        {activePage === 'sales' ? <SalesPage actor={actor} sales={sales} query={query} createRequest={createSaleRequest} onCreated={async () => { setSales(await api.sales(50)); }} /> : activePage === 'products' ? <ProductsPage actor={actor} query={query} /> : activePage === 'purchases' ? <PurchasesPage query={query} /> : activePage === 'stock' ? <StockPage query={query} /> : activePage === 'employees' ? <EmployeesPage query={query} /> : <>
+        {activePage === 'sales' ? <SalesPage actor={actor} sales={sales} query={query} createRequest={createSaleRequest} onCreated={async () => { setSales(await api.sales(50)); }} /> : activePage === 'products' ? <ProductsPage actor={actor} query={query} /> : activePage === 'purchases' ? <PurchasesPage query={query} /> : activePage === 'stock' ? <StockPage query={query} /> : activePage === 'employees' ? <EmployeesPage query={query} /> : activePage === 'finance' ? <FinancePage query={query} /> : <>
         <section className="page-heading"><div><p className="eyebrow">{fullDate.format(new Date()).toUpperCase()}</p><h1>Добрый день, {actor.username}</h1><p>Актуальная информация по вашему магазину.</p></div><div className="period-button">Текущий месяц</div></section>
         <section className="metrics-grid">{metrics.map(m => <article className="metric-card" key={m.label}><div className={`metric-icon ${m.tone}`}><Icon name={m.icon}/></div><div className="metric-label">{m.label}</div><div className="metric-value">{m.value}</div><div className={`metric-note ${m.tone === 'green' ? 'warning' : ''}`}>{m.note}</div></article>)}</section>
         <section className="dashboard-row"><article className="panel chart-panel"><div className="panel-head"><div><h2>Финансовый результат</h2><p>Текущий месяц с учётом возвратов</p></div></div><div className="finance-summary"><div><span>Чистая выручка</span><strong>{summary ? money.format(summary.netRevenue) : '—'}</strong></div><div><span>Себестоимость</span><strong>{summary ? money.format(summary.netCost) : '—'}</strong></div><div><span>После расходов</span><strong className="accent-value">{summary ? money.format(summary.grossProfitAfterExpenses) : '—'}</strong></div></div></article>

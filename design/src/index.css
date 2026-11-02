@@ -23,6 +23,36 @@
   --shadow: 0 1px 2px rgba(23, 25, 29, .04), 0 8px 24px rgba(23, 25, 29, .04);
 }
 
+.report-toolbar { display: flex; align-items: end; gap: 10px; margin: 18px 0 14px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.report-toolbar label { display: grid; gap: 5px; color: var(--muted); font-size: 8px; font-weight: 700; }
+.report-toolbar input { height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); font-size: 9px; }
+.report-toolbar .primary { height: 36px; }
+.finance-tabs { margin-bottom: 18px; }
+.finance-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.finance-metrics article { display: grid; gap: 7px; padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.finance-metrics span { color: var(--muted); font-size: 8px; font-weight: 700; }
+.finance-metrics strong { font-size: 18px; }
+.finance-metrics small { color: var(--muted); font-size: 8px; }
+.finance-metrics .accent-card { border-color: #ffd0b5; background: var(--accent-soft); }
+.finance-metrics .accent-card strong { color: var(--accent-dark); }
+.finance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.payment-report { display: grid; }
+.payment-report > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.payment-report > div:first-child { border-top: 0; }
+.payment-report > div > div { display: grid; gap: 5px; }
+.payment-report strong { font-size: 11px; }
+.payment-report span { color: var(--muted); font-size: 8px; }
+.report-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.report-facts > div { display: grid; gap: 6px; padding: 12px; border-radius: 9px; background: var(--surface-muted); }
+.report-facts span { color: var(--muted); font-size: 8px; }
+.report-facts strong { font-size: 11px; }
+.expense-modal { width: min(650px,100%); }
+
+@media (max-width: 600px) {
+  .report-toolbar { align-items: stretch; flex-direction: column; }
+  .finance-metrics, .finance-grid, .report-facts { grid-template-columns: 1fr; }
+}
+
 @layer base {
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Manrope', sans-serif; -webkit-font-smoothing: antialiased; }
