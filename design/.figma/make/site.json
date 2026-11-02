@@ -1,0 +1,10 @@
+{
+  "description": "Управляйте товарами, продажами и учетом в магазине автоаксессуаров AvtoZvuk с CRM-системой, которая помогает упорядочить работу и контролировать бизнес.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
