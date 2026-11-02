@@ -68,4 +68,11 @@ public final class Commands {
                                @PastOrPresent Instant paidAt) {}
     public record EmployeeStatus(boolean active, @NotBlank @Size(max = 2000) String reason) {}
     public record UserStatus(boolean active, @NotBlank @Size(max = 2000) String reason) {}
+    public record InventoryItem(@Positive long productId, @Min(0) @Max(1000000000) long actualQuantity,
+                                @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal excessUnitCost) {}
+    public record Inventory(@NotNull UUID requestKey, @NotBlank @Size(max = 2000) String reason,
+                            @NotEmpty @Size(max = 500) List<@NotNull @Valid InventoryItem> items) {}
+    public record WriteOff(@NotNull UUID requestKey, @Positive long productId,
+                           @Min(1) @Max(1000000) int quantity,
+                           @NotBlank @Size(max = 2000) String reason) {}
 }

@@ -12,6 +12,7 @@
 - `V4__request_fingerprints.sql` — ключи и отпечатки запросов API для защиты от повторных операций.
 - `V5__finance_request_keys.sql` — идемпотентность расходов, выплат и ручных корректировок бонусов.
 - `V6__reporting_indexes.sql` — индексы для отчетов по возвратам, бонусам и выплатам.
+- `V7__inventory_documents.sql` — позиции инвентаризации, виды складских корректировок и защита истории от изменения.
 - `db/tests/accounting_smoke.sql` — сценарий учета с проверками и откатом тестовых данных.
 - `db/check.ps1` — проверка всех миграций в отдельном временном Docker-контейнере без открытого порта.
 
@@ -52,7 +53,7 @@ powershell -ExecutionPolicy Bypass -File .\db\check.ps1
 | Каталог | `products`, `categories`, `suppliers`; цена продажи находится в карточке товара |
 | Доступ | `employees`, `app_users`; сотрудник и учетная запись разделены, роли OWNER/SELLER |
 | Поступления | `purchases`, `purchase_items`; закупочная цена хранится у каждой позиции |
-| Склад | `stock_lots`, `stock_movements`, `stock_adjustments`; партии, движения, причины корректировок |
+| Склад | `stock_lots`, `stock_movements`, `stock_adjustments`, `stock_adjustment_items`; партии, движения, инвентаризации и списания |
 | Продажи | `sales`, `sale_items`; продавец, ставка бонуса, снимки названия/артикула/цены |
 | Возвраты | `sale_returns`, `return_items`; связь с конкретной позицией исходной продажи |
 | Деньги | `payments`; отдельные положительные суммы CASH/KASPI_PAY, продажа или возврат |

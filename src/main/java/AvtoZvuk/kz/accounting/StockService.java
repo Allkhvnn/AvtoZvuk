@@ -60,9 +60,13 @@ public class StockService {
         if (replay.isPresent()) return replay.get();
         lockProducts(java.util.List.of(command.productId()), true);
         long adjustment = db.id("""
-                INSERT INTO stock_adjustments(reason, created_by, request_key, request_fingerprint)
-                VALUES (?, ?, ?, ?) RETURNING id
+                INSERT INTO stock_adjustments(reason, created_by, request_key, request_fingerprint, operation_type)
+                VALUES (?, ?, ?, ?, 'OPENING') RETURNING id
                 """, command.reason(), actor.id(), command.requestKey(), fingerprint);
+        db.update("""
+                INSERT INTO stock_adjustment_items(adjustment_id, product_id, system_quantity, actual_quantity, unit_cost)
+                VALUES (?, ?, 0, ?, ?)
+                """, adjustment, command.productId(), command.quantity(), command.unitCost());
         long lot = db.id("""
                 INSERT INTO stock_lots(product_id, opening_adjustment_id, unit_cost) VALUES (?, ?, ?) RETURNING id
                 """, command.productId(), adjustment, command.unitCost());

@@ -56,6 +56,7 @@ class KzApplicationTests {
     @Autowired PayrollService payroll;
     @Autowired PersonnelService personnel;
     @Autowired ReportService reports;
+    @Autowired InventoryService inventory;
     @Autowired PasswordEncoder passwords;
     @Autowired MockMvc mvc;
     long ownerEmployee, sellerEmployee, ownerUser, sellerUser, supplier, product;
@@ -372,6 +373,58 @@ class KzApplicationTests {
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Период");
         login(sellerName);
         assertThatThrownBy(() -> reports.summary(today, today)).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void inventoryShortageExcessWriteOffAndHistoryKeepExactCost() {
+        receive(product, 3, "100");
+        var shortage = new Commands.Inventory(UUID.randomUUID(), "Counted shortage",
+                List.of(new Commands.InventoryItem(product, 2, null)));
+        long shortageId = inventory.inventory(shortage);
+        assertThat(inventory.inventory(shortage)).isEqualTo(shortageId);
+        assertThat(quantity(product)).isEqualTo(2);
+        assertThat(db.amount("SELECT stock_cost FROM product_stock WHERE product_id = ?", product))
+                .isEqualByComparingTo("200");
+        var shortageDocument = inventory.adjustment(shortageId);
+        assertThat(shortageDocument.operationType()).isEqualTo("INVENTORY");
+        assertThat(shortageDocument.items()).singleElement().satisfies(row -> {
+            assertThat(row.get("systemQuantity")).isEqualTo(3L);
+            assertThat(row.get("actualQuantity")).isEqualTo(2L);
+            assertThat(row.get("difference")).isEqualTo(-1L);
+        });
+
+        long excessId = inventory.inventory(new Commands.Inventory(UUID.randomUUID(), "Found sealed units",
+                List.of(new Commands.InventoryItem(product, 4, n("120")))));
+        assertThat(quantity(product)).isEqualTo(4);
+        assertThat(db.amount("SELECT stock_cost FROM product_stock WHERE product_id = ?", product))
+                .isEqualByComparingTo("440");
+        long writeOff = inventory.writeOff(new Commands.WriteOff(UUID.randomUUID(), product, 3, "Damaged by water"));
+        assertThat(quantity(product)).isEqualTo(1);
+        assertThat(db.amount("SELECT stock_cost FROM product_stock WHERE product_id = ?", product))
+                .isEqualByComparingTo("120");
+        assertThat(inventory.adjustment(writeOff).operationType()).isEqualTo("WRITE_OFF");
+        assertThat(inventory.inventories(10, 0)).extracting(row -> row.get("id")).contains(shortageId, excessId);
+        var movements = inventory.movements(product, 20, 0);
+        assertThat(movements.getFirst().get("balance")).isEqualTo(1L);
+        assertThat(movements).extracting(row -> row.get("adjustmentType"))
+                .contains("INVENTORY", "WRITE_OFF");
+    }
+
+    @Test
+    void inventoryValidationRollsBackAndConcurrentWriteOffCannotOverspend() throws Exception {
+        receive(product, 1, "100");
+        UUID invalidKey = UUID.randomUUID();
+        assertThatThrownBy(() -> inventory.inventory(new Commands.Inventory(invalidKey, "Missing cost",
+                List.of(new Commands.InventoryItem(product, 2, null)))))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("себестоимость");
+        assertThat(quantity(product)).isEqualTo(1);
+        assertThat(db.id("SELECT count(*) FROM stock_adjustments WHERE request_key = ?", invalidKey)).isZero();
+        var outcomes = concurrently(
+                () -> inventory.writeOff(new Commands.WriteOff(UUID.randomUUID(), product, 1, "First damage")),
+                () -> inventory.writeOff(new Commands.WriteOff(UUID.randomUUID(), product, 1, "Second damage")));
+        assertThat(outcomes.stream().filter(Long.class::isInstance).count()).isEqualTo(1);
+        assertThat(outcomes.stream().filter(BusinessException.class::isInstance).count()).isEqualTo(1);
+        assertThat(quantity(product)).isZero();
     }
 
     private long newProduct() {
