@@ -12,7 +12,11 @@ export type PurchaseDocument = { id: number; documentNumber: string; status: str
 export type NewPurchase = { requestKey: string; supplierId: number; items: { productId: number; quantity: number; unitCost: number }[] };
 export type InventorySummary = { id: number; operationType: string; reason: string; createdAt: string; itemCount: number; absoluteDifference: number };
 export type StockMovement = { id: number; type: string; adjustmentType: string | null; quantity: number; unitCost: number; balance: number; reason: string; createdAt: string; username: string; purchaseItemId: number | null; saleId: number | null; returnItemId: number | null; adjustmentId: number | null };
-export type Employee = { id: number; fullName: string; active: boolean };
+export type Employee = { id: number; fullName: string; phone: string | null; bonusRate: number; active: boolean };
+export type UserAccount = { id: number; employeeId: number | null; employeeName: string | null; username: string; role: 'OWNER' | 'SELLER'; active: boolean; employeeActive: boolean; createdAt: string };
+export type BonusBalance = { employeeId: number; fullName: string; active: boolean; accrued: number; paid: number; balance: number };
+export type BonusEntry = { id: number; type: string; saleId: number | null; returnId: number | null; amount: number; reason: string; createdAt: string };
+export type StaffPayment = { id: number; type: 'BONUS' | 'SALARY'; amount: number; method: string; paidAt: string; reason: string; reversalOfId: number | null; reversed: boolean };
 export type NewSale = {
   requestKey: string;
   sellerId: number | null;
@@ -91,5 +95,15 @@ export const api = {
   writeOff: (productId: number, quantity: number, reason: string) => mutate<{ id: number }>('/stock/write-offs', { requestKey: crypto.randomUUID(), productId, quantity, reason }),
   stockMovements: (productId: number) => request<StockMovement[]>(`/products/${productId}/stock-movements?limit=100&offset=0`),
   employees: () => request<Employee[]>('/employees'),
+  createEmployee: (fullName: string, phone: string | null, bonusRate: number) => mutate<{ id: number }>('/employees', { fullName, phone, bonusRate }),
+  updateEmployee: (id: number, fullName: string, phone: string | null, bonusRate: number) => mutate<void>(`/employees/${id}`, { fullName, phone, bonusRate }, 'PUT'),
+  employeeStatus: (id: number, active: boolean, reason: string) => mutate<void>(`/employees/${id}/status`, { active, reason }, 'PUT'),
+  users: () => request<UserAccount[]>('/users'),
+  createUser: (employeeId: number, username: string, password: string, role: 'OWNER' | 'SELLER') => mutate<{ id: number }>('/users', { employeeId, username, password, role }),
+  userStatus: (id: number, active: boolean, reason: string) => mutate<void>(`/users/${id}/status`, { active, reason }, 'PUT'),
+  bonusBalances: () => request<BonusBalance[]>('/bonuses/balances'),
+  bonusEntries: (employeeId: number) => request<BonusEntry[]>(`/employees/${employeeId}/bonuses?limit=100&offset=0`),
+  staffPayments: (employeeId: number) => request<StaffPayment[]>(`/employees/${employeeId}/staff-payments?limit=100&offset=0`),
+  payStaff: (employeeId: number, type: 'BONUS' | 'SALARY', amount: number, method: 'CASH' | 'KASPI_PAY' | 'BANK_TRANSFER', reason: string) => mutate<{ id: number }>('/staff-payments', { requestKey: crypto.randomUUID(), employeeId, type, amount, method, reason, paidAt: null }),
   createSale: (sale: NewSale) => mutate<{ id: number }>('/sales', sale),
 };
