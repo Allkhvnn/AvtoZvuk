@@ -44,6 +44,9 @@ $env:BOOTSTRAP_OWNER_PASSWORD = 'задайте-длинный-пароль-вл
 .\gradlew.bat bootRun
 ```
 
+Если локальный порт PostgreSQL `5432` уже занят, перед запуском можно задать, например,
+`$env:DB_PORT = '55432'`, а backend запустить с `DB_URL=jdbc:postgresql://localhost:55432/avtozvuk`.
+
 Путь к JDK замените на свой. Адрес API: `http://localhost:8080/api`.
 
 Frontend запускается в отдельном терминале после backend:
