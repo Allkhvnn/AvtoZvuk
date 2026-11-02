@@ -30,7 +30,8 @@ public class CatalogService {
         if (limit < 1 || limit > 100 || offset < 0) throw BusinessException.invalid("Некорректная страница");
         return db.rows("""
                 SELECT p.id, p.category_id AS "categoryId", p.name, p.sku, p.barcode,
-                    p.selling_price AS "sellingPrice", p.active, s.quantity, s.low_stock AS "lowStock"
+                    p.selling_price AS "sellingPrice", p.low_stock_threshold AS "lowStockThreshold",
+                    p.active, s.quantity, s.low_stock AS "lowStock"
                 FROM products p JOIN product_stock s ON s.product_id = p.id
                 WHERE (? OR p.active) ORDER BY p.id LIMIT ? OFFSET ?
                 """, actor.owner(), limit, offset);

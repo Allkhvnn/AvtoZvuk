@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { api, login, logout, type Actor, type LowStock, type Sale, type Summary } from './api';
 import { SalesPage } from './SalesPage';
+import { ProductsPage } from './ProductsPage';
 
 type IconName = 'grid' | 'cart' | 'box' | 'users' | 'chart' | 'settings' | 'search' | 'bell' | 'plus' | 'trend' | 'wallet' | 'receipt' | 'warehouse' | 'chevron';
 const icons: Record<IconName, ReactNode> = {
@@ -60,7 +61,7 @@ export default function App() {
   const [stock, setStock] = useState<LowStock[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
-  const [activePage, setActivePage] = useState<'dashboard' | 'sales'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'sales' | 'products'>('dashboard');
   const [createSaleRequest, setCreateSaleRequest] = useState(0);
 
   useEffect(() => { api.me().then(setActor).catch(() => setActor(null)).finally(() => setChecking(false)); }, []);
@@ -87,15 +88,15 @@ export default function App() {
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><span>AZ</span></div><div><div className="brand-name">Avto<span>Zvuk</span></div><div className="brand-subtitle">учёт магазина</div></div></div>
       <nav className="nav"><p className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</p>
-        {[['Обзор','grid','dashboard'],['Продажи','cart','sales'],['Товары','box',''],['Сотрудники','users',''],['Отчёты','chart','']].map(([label, icon, page]) => <button onClick={() => page && setActivePage(page as 'dashboard' | 'sales')} className={`button nav-item ${activePage === page ? 'active' : ''}`} key={label}><Icon name={icon as IconName}/><span>{label}</span></button>)}
+        {[['Обзор','grid','dashboard'],['Продажи','cart','sales'],['Товары','box','products'],['Сотрудники','users',''],['Отчёты','chart','']].map(([label, icon, page]) => <button onClick={() => page && setActivePage(page as 'dashboard' | 'sales' | 'products')} className={`button nav-item ${activePage === page ? 'active' : ''}`} key={label}><Icon name={icon as IconName}/><span>{label}</span></button>)}
         <p className="nav-caption secondary">УПРАВЛЕНИЕ</p><button className="button nav-item"><Icon name="settings"/><span>Настройки</span></button>
       </nav>
       <div className="sidebar-card"><div className="pulse-dot"/><div><strong>Система работает</strong><span>Backend подключён</span></div></div>
       <button className="profile profile-button" onClick={async () => { await logout(); setActor(null); }} title="Выйти"><div className="avatar">{actor.username.slice(0,2).toUpperCase()}</div><div><strong>{actor.username}</strong><span>{actor.role === 'OWNER' ? 'Владелец' : 'Продавец'}</span></div><Icon name="chevron" size={16}/></button>
     </aside>
-    <main className="main"><header className="topbar"><div className="mobile-brand">AZ</div><div className="search"><Icon name="search" size={18}/><input className="input" placeholder="Поиск по продажам…" value={query} onChange={e => setQuery(e.target.value)}/></div><div className="header-actions"><button className="button icon-button" aria-label="Уведомления"><Icon name="bell"/></button><button className="button primary" onClick={() => { setActivePage('sales'); setCreateSaleRequest(value => value + 1); }}><Icon name="plus" size={18}/>Новая продажа</button></div></header>
+    <main className="main"><header className="topbar"><div className="mobile-brand">AZ</div><div className="search"><Icon name="search" size={18}/><input className="input" placeholder={activePage === 'products' ? 'Поиск по товарам, артикулу или штрихкоду…' : 'Поиск по продажам…'} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="header-actions"><button className="button icon-button" aria-label="Уведомления"><Icon name="bell"/></button><button className="button primary" onClick={() => { setActivePage('sales'); setCreateSaleRequest(value => value + 1); }}><Icon name="plus" size={18}/>Новая продажа</button></div></header>
       <div className="content">{error && <div className="page-error">Не удалось загрузить данные: {error}</div>}
-        {activePage === 'sales' ? <SalesPage actor={actor} sales={sales} query={query} createRequest={createSaleRequest} onCreated={async () => { setSales(await api.sales(50)); }} /> : <>
+        {activePage === 'sales' ? <SalesPage actor={actor} sales={sales} query={query} createRequest={createSaleRequest} onCreated={async () => { setSales(await api.sales(50)); }} /> : activePage === 'products' ? <ProductsPage actor={actor} query={query} /> : <>
         <section className="page-heading"><div><p className="eyebrow">{fullDate.format(new Date()).toUpperCase()}</p><h1>Добрый день, {actor.username}</h1><p>Актуальная информация по вашему магазину.</p></div><div className="period-button">Текущий месяц</div></section>
         <section className="metrics-grid">{metrics.map(m => <article className="metric-card" key={m.label}><div className={`metric-icon ${m.tone}`}><Icon name={m.icon}/></div><div className="metric-label">{m.label}</div><div className="metric-value">{m.value}</div><div className={`metric-note ${m.tone === 'green' ? 'warning' : ''}`}>{m.note}</div></article>)}</section>
         <section className="dashboard-row"><article className="panel chart-panel"><div className="panel-head"><div><h2>Финансовый результат</h2><p>Текущий месяц с учётом возвратов</p></div></div><div className="finance-summary"><div><span>Чистая выручка</span><strong>{summary ? money.format(summary.netRevenue) : '—'}</strong></div><div><span>Себестоимость</span><strong>{summary ? money.format(summary.netCost) : '—'}</strong></div><div><span>После расходов</span><strong className="accent-value">{summary ? money.format(summary.grossProfitAfterExpenses) : '—'}</strong></div></div></article>
