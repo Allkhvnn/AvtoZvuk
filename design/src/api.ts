@@ -5,6 +5,7 @@ export type LowStock = { productId: number; name: string; sku: string; quantity:
 export type Product = { id: number; categoryId: number | null; name: string; sku: string; barcode: string | null; sellingPrice: number; lowStockThreshold: number; quantity: number; active: boolean; lowStock: boolean };
 export type Category = { id: number; name: string };
 export type ProductInput = { name: string; sku: string; barcode: string | null; categoryId: number | null; sellingPrice: number; lowStockThreshold: number };
+export type OpeningStockInput = { requestKey: string; productId: number; quantity: number; unitCost: number; reason: string };
 export type Employee = { id: number; fullName: string; active: boolean };
 export type NewSale = {
   requestKey: string;
@@ -73,6 +74,7 @@ export const api = {
   createProduct: (product: ProductInput) => mutate<Product>('/products', product),
   updateProduct: (id: number, product: ProductInput) => mutate<void>(`/products/${id}`, product, 'PUT'),
   deactivateProduct: (id: number) => mutate<void>(`/products/${id}/deactivate`, null),
+  openingStock: (opening: OpeningStockInput) => mutate<{ id: number }>('/stock/opening', opening),
   employees: () => request<Employee[]>('/employees'),
   createSale: (sale: NewSale) => mutate<{ id: number }>('/sales', sale),
 };

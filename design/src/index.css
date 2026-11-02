@@ -310,6 +310,7 @@ td strong { font-weight: 700; }
 .inactive-row { opacity: .58; }
 .row-actions { display: flex; gap: 3px; }
 .row-button.danger { color: #b42318; }
+.row-button.stock-action { color: white; background: var(--green); font-size: 16px; font-weight: 600; }
 .product-modal { width: min(680px, 100%); border-radius: 17px; background: var(--surface); box-shadow: 0 30px 80px rgba(0,0,0,.22); animation: modalIn .2s ease; }
 .product-form-error { margin: 16px 26px 0; }
 .product-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 22px 26px; }
@@ -322,12 +323,27 @@ td strong { font-weight: 700; }
 .product-form-note { display: grid; gap: 4px; margin: 0 26px 5px; padding: 12px 14px; border-radius: 9px; color: #5c616a; background: #f5f6f7; font-size: 9px; }
 .product-form-note span { color: var(--muted); line-height: 1.5; }
 .cancel-button { height: 40px; padding: 0 18px; border: 1px solid var(--line); border-radius: 9px; color: #5f636b; background: var(--surface); font-size: 10px; font-weight: 700; }
+.opening-modal { width: min(570px, 100%); border-radius: 17px; background: var(--surface); box-shadow: 0 30px 80px rgba(0,0,0,.22); animation: modalIn .2s ease; }
+.opening-form { display: grid; gap: 16px; padding: 22px 26px 5px; }
+.opening-product-summary { display: flex; align-items: center; gap: 11px; padding: 12px; border-radius: 10px; background: var(--surface-muted); }
+.opening-product-summary > div:last-child { display: grid; gap: 4px; }
+.opening-product-summary strong { font-size: 10px; }
+.opening-product-summary span { color: var(--muted); font-size: 9px; }
+.opening-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.opening-form textarea { min-height: 75px; resize: vertical; padding: 10px 11px; outline: none; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-muted); font-size: 10px; }
+.opening-form textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.opening-total { display: flex; align-items: center; justify-content: space-between; padding: 13px 15px; border-radius: 10px; background: var(--accent-soft); }
+.opening-total span { color: var(--accent-dark); font-size: 9px; }
+.opening-total strong { color: var(--accent-dark); font-size: 16px; }
+.opening-note { margin: 0; }
 
 @media (max-width: 600px) {
   .sales-heading { align-items: flex-start; }
   .sales-heading .primary { width: 42px; padding: 0; overflow: hidden; font-size: 0; }
   .sales-heading .button-plus { font-size: 22px; }
   .product-modal { min-height: 100vh; border-radius: 0; }
+  .opening-modal { width: 100%; min-height: 100vh; border-radius: 0; }
   .product-form-grid { grid-template-columns: 1fr; }
   .product-form-grid .wide { grid-column: auto; }
+  .opening-fields { grid-template-columns: 1fr; }
 }
