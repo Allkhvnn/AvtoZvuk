@@ -1,6 +1,7 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.trading.ReturnItemRequest;
+import AvtoZvuk.kz.api.dto.trading.SaleReturnRequest;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +24,10 @@ public class ReturnService {
     private final AuditService audit;
 
     @Transactional(timeout = 30)
-    public long returnSale(Commands.SaleReturn command) {
+    public long returnSale(SaleReturnRequest command) {
         // Returns are owner-only until the shop defines seller return permissions.
         var actor = actors.owner(); rules.validate(command);
-        DocumentSupport.unique(command.items().stream().map(Commands.ReturnItem::saleItemId).toList());
+        DocumentSupport.unique(command.items().stream().map(ReturnItemRequest::saleItemId).toList());
         String fingerprint = Rules.fingerprint(actor.id() + ":" + command);
         var replay = documents.replay(DocumentSupport.Kind.RETURN, command.requestKey(), fingerprint);
         if (replay.isPresent()) return replay.get();
@@ -89,7 +90,7 @@ public class ReturnService {
         return returned;
     }
 
-    private void restore(Commands.ReturnItem item, long returnItem, long product, long priorQuantity, long actor) {
+    private void restore(ReturnItemRequest item, long returnItem, long product, long priorQuantity, long actor) {
         long skip = priorQuantity;
         int needed = item.quantity();
         // Prior defective returns also consume original units, even though they had no stock movement.

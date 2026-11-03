@@ -1,6 +1,6 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.trading.OpeningStockRequest;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +53,7 @@ public class StockService {
     }
 
     @Transactional(timeout = 30)
-    public long opening(Commands.OpeningStock command) {
+    public long opening(OpeningStockRequest command) {
         var actor = actors.owner(); rules.validate(command);
         var fingerprint = Rules.fingerprint(actor.id() + ":" + command);
         var replay = documents.replay(DocumentSupport.Kind.OPENING, command.requestKey(), fingerprint);

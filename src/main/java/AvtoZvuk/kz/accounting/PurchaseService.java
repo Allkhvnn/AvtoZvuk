@@ -1,6 +1,7 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.trading.PurchaseItemRequest;
+import AvtoZvuk.kz.api.dto.trading.PurchaseRequest;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -20,14 +21,14 @@ public class PurchaseService {
     private final AuditService audit;
 
     @Transactional(timeout = 30)
-    public long receive(Commands.Purchase command) {
+    public long receive(PurchaseRequest command) {
         var actor = actors.owner(); rules.validate(command);
-        DocumentSupport.unique(command.items().stream().map(Commands.PurchaseItem::productId).toList());
+        DocumentSupport.unique(command.items().stream().map(PurchaseItemRequest::productId).toList());
         var fingerprint = Rules.fingerprint(actor.id() + ":" + command);
         var replay = documents.replay(DocumentSupport.Kind.PURCHASE, command.requestKey(), fingerprint);
         if (replay.isPresent()) return replay.get();
         db.one("SELECT id FROM suppliers WHERE id = ? AND active", command.supplierId());
-        stock.lockProducts(command.items().stream().map(Commands.PurchaseItem::productId).toList(), true);
+        stock.lockProducts(command.items().stream().map(PurchaseItemRequest::productId).toList(), true);
         BigDecimal total = command.items().stream().map(i -> i.unitCost().multiply(BigDecimal.valueOf(i.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         DocumentSupport.bounded(total);

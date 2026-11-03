@@ -1,6 +1,7 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.trading.SaleItemRequest;
+import AvtoZvuk.kz.api.dto.trading.SaleRequest;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -21,17 +22,17 @@ public class SaleService {
     private final AuditService audit;
 
     @Transactional(timeout = 30)
-    public long sell(Commands.Sale command) {
+    public long sell(SaleRequest command) {
         var actor = actors.get(); rules.validate(command);
         Long sellerId = command.sellerId() == null ? actor.employeeId() : command.sellerId();
         if (sellerId == null) throw BusinessException.invalid("Укажите сотрудника-продавца");
         if (!actor.owner() && !sellerId.equals(actor.employeeId())) throw BusinessException.forbidden();
-        DocumentSupport.unique(command.items().stream().map(Commands.SaleItem::productId).toList());
+        DocumentSupport.unique(command.items().stream().map(SaleItemRequest::productId).toList());
         var fingerprint = Rules.fingerprint(actor.id() + ":" + command);
         var replay = documents.replay(DocumentSupport.Kind.SALE, command.requestKey(), fingerprint);
         if (replay.isPresent()) return replay.get();
         var seller = db.one("SELECT id, bonus_rate FROM employees WHERE id = ? AND active FOR SHARE", sellerId);
-        var products = stock.lockProducts(command.items().stream().map(Commands.SaleItem::productId).toList(), true);
+        var products = stock.lockProducts(command.items().stream().map(SaleItemRequest::productId).toList(), true);
         BigDecimal total = BigDecimal.ZERO;
         for (var item : command.items()) {
             var gross = item.unitPrice().multiply(BigDecimal.valueOf(item.quantity()));

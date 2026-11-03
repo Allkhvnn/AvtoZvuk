@@ -1,9 +1,11 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
 import AvtoZvuk.kz.api.dto.inventory.InventoryDetailResponse;
+import AvtoZvuk.kz.api.dto.inventory.InventoryItemRequest;
+import AvtoZvuk.kz.api.dto.inventory.InventoryRequest;
 import AvtoZvuk.kz.api.dto.inventory.InventorySummaryResponse;
 import AvtoZvuk.kz.api.dto.inventory.StockMovementResponse;
+import AvtoZvuk.kz.api.dto.inventory.WriteOffRequest;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -25,16 +27,16 @@ public class InventoryService {
     private final AuditService audit;
 
     @Transactional(timeout = 30)
-    public long inventory(Commands.Inventory command) {
+    public long inventory(InventoryRequest command) {
         var actor = actors.owner();
         rules.validate(command);
-        DocumentSupport.unique(command.items().stream().map(Commands.InventoryItem::productId).toList());
+        DocumentSupport.unique(command.items().stream().map(InventoryItemRequest::productId).toList());
         String fingerprint = Rules.fingerprint(actor.id() + ":" + command);
         var replay = documents.replay(DocumentSupport.Kind.INVENTORY, command.requestKey(), fingerprint);
         if (replay.isPresent()) return replay.get();
-        stock.lockProducts(command.items().stream().map(Commands.InventoryItem::productId).toList(), false);
+        stock.lockProducts(command.items().stream().map(InventoryItemRequest::productId).toList(), false);
         long adjustment = createAdjustment("INVENTORY", command.reason(), command.requestKey(), fingerprint, actor.id());
-        var ordered = command.items().stream().sorted(Comparator.comparingLong(Commands.InventoryItem::productId)).toList();
+        var ordered = command.items().stream().sorted(Comparator.comparingLong(InventoryItemRequest::productId)).toList();
         for (var item : ordered) {
             var lots = repository.lockAvailableLots(item.productId());
             long system = lots.stream().mapToLong(InventoryRepository.StockLot::quantityRemaining).sum();
@@ -54,7 +56,7 @@ public class InventoryService {
     }
 
     @Transactional(timeout = 30)
-    public long writeOff(Commands.WriteOff command) {
+    public long writeOff(WriteOffRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         String fingerprint = Rules.fingerprint(actor.id() + ":" + command);

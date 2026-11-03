@@ -1,6 +1,6 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.trading.PaymentRequest;
 import AvtoZvuk.kz.common.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -39,9 +39,9 @@ public class DocumentSupport {
         db.update("UPDATE " + kind.table + " SET status = 'POSTED', posted_at = now(), posted_by = ? WHERE id = ?", actor, id);
     }
 
-    public void payments(Long saleId, Long returnId, List<Commands.Payment> payments, BigDecimal total, long actor) {
-        unique(payments.stream().map(Commands.Payment::method).toList());
-        var paid = payments.stream().map(Commands.Payment::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    public void payments(Long saleId, Long returnId, List<PaymentRequest> payments, BigDecimal total, long actor) {
+        unique(payments.stream().map(PaymentRequest::method).toList());
+        var paid = payments.stream().map(PaymentRequest::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
         Rules.equalMoney(total, paid, "Сумма оплат должна совпадать с итогом документа");
         for (var payment : payments)
             db.update("INSERT INTO payments(sale_id, return_id, method, amount, created_by) VALUES (?, ?, ?, ?, ?)",

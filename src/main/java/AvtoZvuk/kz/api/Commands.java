@@ -1,41 +1,17 @@
 package AvtoZvuk.kz.api;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 public final class Commands {
     private Commands() {}
 
     public record Named(@NotBlank @Size(max = 150) String name) {}
-    public enum PaymentMethod { CASH, KASPI_PAY }
     public enum FinanceMethod { CASH, KASPI_PAY, BANK_TRANSFER }
     public enum StaffPaymentType { BONUS, SALARY }
-    public record PurchaseItem(@Positive long productId, @Min(1) @Max(1000000) int quantity,
-                               @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal unitCost) {}
-    public record Purchase(@NotNull UUID requestKey, @Positive long supplierId,
-                           @NotEmpty @Size(max = 100) List<@NotNull @Valid PurchaseItem> items) {}
-    public record SaleItem(@Positive long productId, @Min(1) @Max(1000000) int quantity,
-                           @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal unitPrice,
-                           @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal discountAmount) {}
-    public record Payment(@NotNull PaymentMethod method,
-                          @NotNull @DecimalMin(value = "0", inclusive = false)
-                          @Digits(integer = 17, fraction = 2) BigDecimal amount) {}
-    public record Sale(@NotNull UUID requestKey, @Positive Long sellerId,
-                       @NotEmpty @Size(max = 100) List<@NotNull @Valid SaleItem> items,
-                       @NotNull @Size(max = 2) List<@NotNull @Valid Payment> payments) {}
-    public record ReturnItem(@Positive long saleItemId, @Min(1) @Max(1000000) int quantity, boolean restock) {}
-    public record SaleReturn(@NotNull UUID requestKey, @Positive long saleId,
-                             @NotBlank @Size(max = 2000) String reason,
-                             @NotEmpty @Size(max = 100) List<@NotNull @Valid ReturnItem> items,
-                             @NotNull @Size(max = 2) List<@NotNull @Valid Payment> payments) {}
-    public record OpeningStock(@NotNull UUID requestKey, @Positive long productId, @Min(1) @Max(1000000) int quantity,
-                               @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal unitCost,
-                               @NotBlank @Size(max = 2000) String reason) {}
     public record Expense(@NotNull UUID requestKey, @Positive long categoryId,
                           @NotNull @DecimalMin(value = "0", inclusive = false)
                           @Digits(integer = 17, fraction = 2) BigDecimal amount,
@@ -52,11 +28,4 @@ public final class Commands {
                                @Digits(integer = 17, fraction = 2) BigDecimal amount,
                                @NotNull FinanceMethod method, @NotBlank @Size(max = 2000) String reason,
                                @PastOrPresent Instant paidAt) {}
-    public record InventoryItem(@Positive long productId, @Min(0) @Max(1000000000) long actualQuantity,
-                                @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal excessUnitCost) {}
-    public record Inventory(@NotNull UUID requestKey, @NotBlank @Size(max = 2000) String reason,
-                            @NotEmpty @Size(max = 500) List<@NotNull @Valid InventoryItem> items) {}
-    public record WriteOff(@NotNull UUID requestKey, @Positive long productId,
-                           @Min(1) @Max(1000000) int quantity,
-                           @NotBlank @Size(max = 2000) String reason) {}
 }

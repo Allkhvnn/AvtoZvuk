@@ -7,6 +7,8 @@ import AvtoZvuk.kz.api.dto.catalog.SupplierRequest;
 import AvtoZvuk.kz.api.dto.personnel.EmployeeRequest;
 import AvtoZvuk.kz.api.dto.personnel.EmployeeStatusRequest;
 import AvtoZvuk.kz.api.dto.personnel.UserStatusRequest;
+import AvtoZvuk.kz.api.dto.inventory.*;
+import AvtoZvuk.kz.api.dto.trading.*;
 import AvtoZvuk.kz.catalog.CatalogService;
 import AvtoZvuk.kz.catalog.PersonnelService;
 import AvtoZvuk.kz.common.*;
@@ -87,9 +89,9 @@ class KzApplicationTests {
     @Test
     void fifoSaleSplitPaymentAndPartialReturn() {
         receive(product, 1, "100"); receive(product, 2, "120");
-        long sale = sales.sell(new Commands.Sale(UUID.randomUUID(), sellerEmployee,
-                List.of(new Commands.SaleItem(product, 2, n("200"), n("20"))),
-                List.of(payment("100"), new Commands.Payment(Commands.PaymentMethod.KASPI_PAY, n("280")))));
+        long sale = sales.sell(new SaleRequest(UUID.randomUUID(), sellerEmployee,
+                List.of(new SaleItemRequest(product, 2, n("200"), n("20"))),
+                List.of(payment("100"), new PaymentRequest(PaymentRequest.Method.KASPI_PAY, n("280")))));
         var view = documents.sale(sale);
         assertThat(view.total()).isEqualByComparingTo("380");
         assertThat(view.bonus()).isEqualByComparingTo("19");
@@ -109,8 +111,8 @@ class KzApplicationTests {
         receive(product, 1, "10");
         long empty = newProduct();
         UUID key = UUID.randomUUID();
-        var command = new Commands.Sale(key, null,
-                List.of(new Commands.SaleItem(product, 1, n("20"), n("0")), new Commands.SaleItem(empty, 1, n("20"), n("0"))), List.of(payment("40")));
+        var command = new SaleRequest(key, null,
+                List.of(new SaleItemRequest(product, 1, n("20"), n("0")), new SaleItemRequest(empty, 1, n("20"), n("0"))), List.of(payment("40")));
         assertThatThrownBy(() -> sales.sell(command)).isInstanceOf(BusinessException.class).hasMessageContaining("Недостаточно товара");
         assertThat(quantity(product)).isEqualTo(1);
         assertThat(db.id("SELECT count(*) FROM sales WHERE request_key = ?", key)).isZero();
@@ -127,16 +129,16 @@ class KzApplicationTests {
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Сумма оплат");
         assertThat(quantity(product)).isEqualTo(1);
         assertThat(db.id("SELECT count(*) FROM sales WHERE request_key = ?", key)).isZero();
-        assertThatThrownBy(() -> sales.sell(new Commands.Sale(key, null,
-                List.of(new Commands.SaleItem(product, 1, n("20"), n("21"))), List.of())))
+        assertThatThrownBy(() -> sales.sell(new SaleRequest(key, null,
+                List.of(new SaleItemRequest(product, 1, n("20"), n("21"))), List.of())))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Скидка");
     }
 
     @Test
     void partialReturnRoundingRefundsExactTotalAndBonus() {
         receive(product, 3, "0.10");
-        long sale = sales.sell(new Commands.Sale(UUID.randomUUID(), null,
-                List.of(new Commands.SaleItem(product, 3, n("1"), n("2"))), List.of(payment("1"))));
+        long sale = sales.sell(new SaleRequest(UUID.randomUUID(), null,
+                List.of(new SaleItemRequest(product, 3, n("1"), n("2"))), List.of(payment("1"))));
         long line = line(sale);
         for (String amount : List.of("0.33", "0.34", "0.33")) returns.returnSale(returnCommand(sale, line, amount, true));
         assertThat(db.amount("SELECT sum(amount) FROM bonus_entries WHERE sale_id = ? OR return_id IN (SELECT id FROM sale_returns WHERE sale_id = ?)", sale, sale)).isEqualByComparingTo("0");
@@ -158,7 +160,7 @@ class KzApplicationTests {
 
     @Test
     void idempotencyRejectsChangedPayloadAndDoesNotDuplicateDocuments() {
-        var purchase = new Commands.Purchase(UUID.randomUUID(), supplier, List.of(new Commands.PurchaseItem(product, 1, n("100"))));
+        var purchase = new PurchaseRequest(UUID.randomUUID(), supplier, List.of(new PurchaseItemRequest(product, 1, n("100"))));
         long receipt = purchases.receive(purchase);
         assertThat(purchases.receive(purchase)).isEqualTo(receipt);
         assertThat(documents.purchases(50, 0)).anyMatch(row -> row.id() == receipt);
@@ -167,7 +169,7 @@ class KzApplicationTests {
         assertThat(sales.sell(command)).isEqualTo(sale);
         assertThatThrownBy(() -> sales.sell(saleCommand(command.requestKey(), product, 1, "199", "199")))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("ключ запроса");
-        var opening = new Commands.OpeningStock(UUID.randomUUID(), product, 2, n("90"), "Initial count");
+        var opening = new OpeningStockRequest(UUID.randomUUID(), product, 2, n("90"), "Initial count");
         long adjustment = stock.opening(opening);
         assertThat(stock.opening(opening)).isEqualTo(adjustment);
         assertThat(quantity(product)).isEqualTo(2);
@@ -197,8 +199,8 @@ class KzApplicationTests {
     void sellerPermissionsAndDisabledAccountAreCheckedInServices() {
         login(sellerName);
         assertThatThrownBy(() -> catalog.supplier(new SupplierRequest("Forbidden", null))).isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> sales.sell(new Commands.Sale(UUID.randomUUID(), ownerEmployee,
-                List.of(new Commands.SaleItem(product, 1, n("20"), n("0"))), List.of(payment("20")))))
+        assertThatThrownBy(() -> sales.sell(new SaleRequest(UUID.randomUUID(), ownerEmployee,
+                List.of(new SaleItemRequest(product, 1, n("20"), n("0"))), List.of(payment("20")))))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("прав");
         login(ownerName); receive(product, 2, "10");
         long ownerSale = sales.sell(saleCommand(UUID.randomUUID(), product, 1, "20", "20"));
@@ -325,8 +327,8 @@ class KzApplicationTests {
         LocalDate today = LocalDate.now(ReportService.STORE_ZONE);
         var before = reports.summary(today, today);
         receive(product, 2, "100");
-        long sale = sales.sell(new Commands.Sale(UUID.randomUUID(), sellerEmployee,
-                List.of(new Commands.SaleItem(product, 2, n("200"), n("20"))), List.of(payment("380"))));
+        long sale = sales.sell(new SaleRequest(UUID.randomUUID(), sellerEmployee,
+                List.of(new SaleItemRequest(product, 2, n("200"), n("20"))), List.of(payment("380"))));
         returns.returnSale(returnCommand(sale, line(sale), "190", true));
         long expenseCategory = finance.expenseCategory(new Commands.Named("Report expense " + UUID.randomUUID()));
         finance.expense(new Commands.Expense(UUID.randomUUID(), expenseCategory, n("50"),
@@ -384,8 +386,8 @@ class KzApplicationTests {
     @Test
     void inventoryShortageExcessWriteOffAndHistoryKeepExactCost() {
         receive(product, 3, "100");
-        var shortage = new Commands.Inventory(UUID.randomUUID(), "Counted shortage",
-                List.of(new Commands.InventoryItem(product, 2, null)));
+        var shortage = new InventoryRequest(UUID.randomUUID(), "Counted shortage",
+                List.of(new InventoryItemRequest(product, 2, null)));
         long shortageId = inventory.inventory(shortage);
         assertThat(inventory.inventory(shortage)).isEqualTo(shortageId);
         assertThat(quantity(product)).isEqualTo(2);
@@ -399,12 +401,12 @@ class KzApplicationTests {
             assertThat(row.difference()).isEqualTo(-1L);
         });
 
-        long excessId = inventory.inventory(new Commands.Inventory(UUID.randomUUID(), "Found sealed units",
-                List.of(new Commands.InventoryItem(product, 4, n("120")))));
+        long excessId = inventory.inventory(new InventoryRequest(UUID.randomUUID(), "Found sealed units",
+                List.of(new InventoryItemRequest(product, 4, n("120")))));
         assertThat(quantity(product)).isEqualTo(4);
         assertThat(db.amount("SELECT stock_cost FROM product_stock WHERE product_id = ?", product))
                 .isEqualByComparingTo("440");
-        long writeOff = inventory.writeOff(new Commands.WriteOff(UUID.randomUUID(), product, 3, "Damaged by water"));
+        long writeOff = inventory.writeOff(new WriteOffRequest(UUID.randomUUID(), product, 3, "Damaged by water"));
         assertThat(quantity(product)).isEqualTo(1);
         assertThat(db.amount("SELECT stock_cost FROM product_stock WHERE product_id = ?", product))
                 .isEqualByComparingTo("120");
@@ -420,14 +422,14 @@ class KzApplicationTests {
     void inventoryValidationRollsBackAndConcurrentWriteOffCannotOverspend() throws Exception {
         receive(product, 1, "100");
         UUID invalidKey = UUID.randomUUID();
-        assertThatThrownBy(() -> inventory.inventory(new Commands.Inventory(invalidKey, "Missing cost",
-                List.of(new Commands.InventoryItem(product, 2, null)))))
+        assertThatThrownBy(() -> inventory.inventory(new InventoryRequest(invalidKey, "Missing cost",
+                List.of(new InventoryItemRequest(product, 2, null)))))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("себестоимость");
         assertThat(quantity(product)).isEqualTo(1);
         assertThat(db.id("SELECT count(*) FROM stock_adjustments WHERE request_key = ?", invalidKey)).isZero();
         var outcomes = concurrently(
-                () -> inventory.writeOff(new Commands.WriteOff(UUID.randomUUID(), product, 1, "First damage")),
-                () -> inventory.writeOff(new Commands.WriteOff(UUID.randomUUID(), product, 1, "Second damage")));
+                () -> inventory.writeOff(new WriteOffRequest(UUID.randomUUID(), product, 1, "First damage")),
+                () -> inventory.writeOff(new WriteOffRequest(UUID.randomUUID(), product, 1, "Second damage")));
         assertThat(outcomes.stream().filter(Long.class::isInstance).count()).isEqualTo(1);
         assertThat(outcomes.stream().filter(BusinessException.class::isInstance).count()).isEqualTo(1);
         assertThat(quantity(product)).isZero();
@@ -437,7 +439,7 @@ class KzApplicationTests {
         return catalog.saveProduct(null, new ProductRequest("Speaker", "SKU-" + UUID.randomUUID(), null, null, n("200"), 1)).getId();
     }
     private long receive(long productId, int quantity, String cost) {
-        return purchases.receive(new Commands.Purchase(UUID.randomUUID(), supplier, List.of(new Commands.PurchaseItem(productId, quantity, n(cost)))));
+        return purchases.receive(new PurchaseRequest(UUID.randomUUID(), supplier, List.of(new PurchaseItemRequest(productId, quantity, n(cost)))));
     }
     private long quantity(long productId) { return db.id("SELECT quantity FROM product_stock WHERE product_id = ?", productId); }
     private BigDecimal balance(long employeeId) { return db.amount("SELECT balance FROM employee_bonus_balances WHERE employee_id = ?", employeeId); }
@@ -446,12 +448,12 @@ class KzApplicationTests {
     }
     private long line(long sale) { return documents.sale(sale).items().getFirst().id(); }
     private static BigDecimal n(String value) { return new BigDecimal(value); }
-    private static Commands.Payment payment(String amount) { return new Commands.Payment(Commands.PaymentMethod.CASH, n(amount)); }
-    private static Commands.Sale saleCommand(UUID key, long productId, int quantity, String price, String paid) {
-        return new Commands.Sale(key, null, List.of(new Commands.SaleItem(productId, quantity, n(price), n("0"))), List.of(payment(paid)));
+    private static PaymentRequest payment(String amount) { return new PaymentRequest(PaymentRequest.Method.CASH, n(amount)); }
+    private static SaleRequest saleCommand(UUID key, long productId, int quantity, String price, String paid) {
+        return new SaleRequest(key, null, List.of(new SaleItemRequest(productId, quantity, n(price), n("0"))), List.of(payment(paid)));
     }
-    private static Commands.SaleReturn returnCommand(long sale, long line, String amount, boolean restock) {
-        return new Commands.SaleReturn(UUID.randomUUID(), sale, "Test return", List.of(new Commands.ReturnItem(line, 1, restock)), List.of(payment(amount)));
+    private static SaleReturnRequest returnCommand(long sale, long line, String amount, boolean restock) {
+        return new SaleReturnRequest(UUID.randomUUID(), sale, "Test return", List.of(new ReturnItemRequest(line, 1, restock)), List.of(payment(amount)));
     }
     private static void login(String username) {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(username, "unused", List.of()));
