@@ -389,9 +389,9 @@ class KzApplicationTests {
         var shortageDocument = inventory.adjustment(shortageId);
         assertThat(shortageDocument.operationType()).isEqualTo("INVENTORY");
         assertThat(shortageDocument.items()).singleElement().satisfies(row -> {
-            assertThat(row.get("systemQuantity")).isEqualTo(3L);
-            assertThat(row.get("actualQuantity")).isEqualTo(2L);
-            assertThat(row.get("difference")).isEqualTo(-1L);
+            assertThat(row.systemQuantity()).isEqualTo(3L);
+            assertThat(row.actualQuantity()).isEqualTo(2L);
+            assertThat(row.difference()).isEqualTo(-1L);
         });
 
         long excessId = inventory.inventory(new Commands.Inventory(UUID.randomUUID(), "Found sealed units",
@@ -404,10 +404,10 @@ class KzApplicationTests {
         assertThat(db.amount("SELECT stock_cost FROM product_stock WHERE product_id = ?", product))
                 .isEqualByComparingTo("120");
         assertThat(inventory.adjustment(writeOff).operationType()).isEqualTo("WRITE_OFF");
-        assertThat(inventory.inventories(10, 0)).extracting(row -> row.get("id")).contains(shortageId, excessId);
+        assertThat(inventory.inventories(10, 0)).extracting(row -> row.id()).contains(shortageId, excessId);
         var movements = inventory.movements(product, 20, 0);
-        assertThat(movements.getFirst().get("balance")).isEqualTo(1L);
-        assertThat(movements).extracting(row -> row.get("adjustmentType"))
+        assertThat(movements.getFirst().balance()).isEqualTo(1L);
+        assertThat(movements).extracting(row -> row.adjustmentType())
                 .contains("INVENTORY", "WRITE_OFF");
     }
 

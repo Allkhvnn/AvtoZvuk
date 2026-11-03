@@ -1,6 +1,9 @@
 package AvtoZvuk.kz.accounting;
 
 import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.inventory.InventoryDetailResponse;
+import AvtoZvuk.kz.api.dto.inventory.InventorySummaryResponse;
+import AvtoZvuk.kz.api.dto.inventory.StockMovementResponse;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -14,14 +17,12 @@ import java.util.*;
 @RequiredArgsConstructor
 public class InventoryService {
     private final InventoryRepository repository;
+    private final InventoryMapper mapper;
     private final CurrentActor actors;
     private final Rules rules;
     private final DocumentSupport documents;
     private final StockService stock;
     private final AuditService audit;
-
-    public record Adjustment(long id, String operationType, String reason, Object createdAt,
-                             List<Map<String, Object>> items) {}
 
     @Transactional(timeout = 30)
     public long inventory(Commands.Inventory command) {
@@ -71,24 +72,24 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> inventories(int limit, int offset) {
+    public List<InventorySummaryResponse> inventories(int limit, int offset) {
         actors.owner(); FinanceService.page(limit, offset);
-        return repository.inventories(limit, offset);
+        return repository.inventories(limit, offset).stream().map(mapper::toSummary).toList();
     }
 
     @Transactional(readOnly = true)
-    public Adjustment adjustment(long id) {
+    public InventoryDetailResponse adjustment(long id) {
         actors.owner();
         var header = repository.adjustment(id);
-        return new Adjustment(header.id(), header.operationType(), header.reason(), header.createdAt(),
-                repository.adjustmentItems(id));
+        return new InventoryDetailResponse(header.id(), header.operationType(), header.reason(), header.createdAt(),
+                repository.adjustmentItems(id).stream().map(mapper::toDetailItem).toList());
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> movements(long productId, int limit, int offset) {
+    public List<StockMovementResponse> movements(long productId, int limit, int offset) {
         actors.owner(); FinanceService.page(limit, offset);
         repository.requireProduct(productId);
-        return repository.movements(productId, limit, offset);
+        return repository.movements(productId, limit, offset).stream().map(mapper::toMovement).toList();
     }
 
     private long createAdjustment(String type, String reason, UUID key, String fingerprint, long actor) {

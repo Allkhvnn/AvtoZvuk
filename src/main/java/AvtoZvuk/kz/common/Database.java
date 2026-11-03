@@ -2,6 +2,7 @@ package AvtoZvuk.kz.common;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -16,6 +17,10 @@ public class Database {
 
     public List<Map<String, Object>> rows(String sql, Object... args) {
         return jdbc.sql(sql).params(args).query().listOfRows();
+    }
+
+    public <T> List<T> query(String sql, RowMapper<T> mapper, Object... args) {
+        return jdbc.sql(sql).params(args).query(mapper).list();
     }
 
     public Optional<Map<String, Object>> optional(String sql, Object... args) {

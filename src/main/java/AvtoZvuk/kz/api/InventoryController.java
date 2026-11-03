@@ -1,6 +1,9 @@
 package AvtoZvuk.kz.api;
 
 import AvtoZvuk.kz.accounting.InventoryService;
+import AvtoZvuk.kz.api.dto.inventory.InventoryDetailResponse;
+import AvtoZvuk.kz.api.dto.inventory.InventorySummaryResponse;
+import AvtoZvuk.kz.api.dto.inventory.StockMovementResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,9 +20,9 @@ public class InventoryController {
 
     @PostMapping("/inventories") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> inventory(@Valid @RequestBody Commands.Inventory command) { return Map.of("id", inventory.inventory(command)); }
-    @GetMapping("/inventories") List<Map<String, Object>> inventories(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return inventory.inventories(limit, offset); }
-    @GetMapping("/inventories/{id}") InventoryService.Adjustment inventory(@PathVariable long id) { return inventory.adjustment(id); }
+    @GetMapping("/inventories") List<InventorySummaryResponse> inventories(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return inventory.inventories(limit, offset); }
+    @GetMapping("/inventories/{id}") InventoryDetailResponse inventory(@PathVariable long id) { return inventory.adjustment(id); }
     @PostMapping("/stock/write-offs") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> writeOff(@Valid @RequestBody Commands.WriteOff command) { return Map.of("id", inventory.writeOff(command)); }
-    @GetMapping("/products/{id}/stock-movements") List<Map<String, Object>> movements(@PathVariable long id, @RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return inventory.movements(id, limit, offset); }
+    @GetMapping("/products/{id}/stock-movements") List<StockMovementResponse> movements(@PathVariable long id, @RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return inventory.movements(id, limit, offset); }
 }
