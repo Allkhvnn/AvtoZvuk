@@ -1,9 +1,8 @@
 package AvtoZvuk.kz.catalog;
 
 import AvtoZvuk.kz.accounting.AuditService;
-import AvtoZvuk.kz.api.Commands;
 import AvtoZvuk.kz.api.dto.catalog.*;
-import AvtoZvuk.kz.api.dto.personnel.EmployeeResponse;
+import AvtoZvuk.kz.api.dto.personnel.*;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +33,7 @@ public class CatalogService {
     }
 
     @Transactional
-    public Product saveProduct(Long id, Commands.Product command) {
+    public Product saveProduct(Long id, ProductRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         if (command.categoryId() != null)
@@ -68,7 +67,7 @@ public class CatalogService {
     }
 
     @Transactional
-    public long category(Commands.Named command) {
+    public long category(CategoryRequest command) {
         var actor = actors.owner(); rules.validate(command);
         long id = db.id("INSERT INTO categories(name) VALUES (?) RETURNING id", command.name().trim());
         audit.record(actor.id(), "CATEGORY_CREATE", "Category", id, null);
@@ -76,7 +75,7 @@ public class CatalogService {
     }
 
     @Transactional
-    public long supplier(Commands.Supplier command) {
+    public long supplier(SupplierRequest command) {
         var actor = actors.owner(); rules.validate(command);
         long id = db.id("INSERT INTO suppliers(name, phone) VALUES (?, ?) RETURNING id", command.name().trim(), command.phone());
         audit.record(actor.id(), "SUPPLIER_CREATE", "Supplier", id, null);
@@ -84,7 +83,7 @@ public class CatalogService {
     }
 
     @Transactional
-    public long employee(Commands.Employee command) {
+    public long employee(EmployeeRequest command) {
         var actor = actors.owner(); rules.validate(command);
         long id = db.id("INSERT INTO employees(full_name, phone, bonus_rate) VALUES (?, ?, ?) RETURNING id",
                 command.fullName().trim(), command.phone(), command.bonusRate());
@@ -93,7 +92,7 @@ public class CatalogService {
     }
 
     @Transactional
-    public long user(Commands.User command) {
+    public long user(UserRequest command) {
         var actor = actors.owner(); rules.validate(command);
         if (command.password().getBytes(StandardCharsets.UTF_8).length > 72)
             throw BusinessException.invalid("Пароль должен занимать не более 72 байт UTF-8");

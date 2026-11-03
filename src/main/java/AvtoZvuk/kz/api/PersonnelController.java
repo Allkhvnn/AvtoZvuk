@@ -22,16 +22,16 @@ public class PersonnelController {
 
     @GetMapping("/employees") List<EmployeeResponse> employees() { return catalog.employees(); }
     @PostMapping("/employees") @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Long> employee(@Valid @RequestBody Commands.Employee command) { return Map.of("id", catalog.employee(command)); }
+    Map<String, Long> employee(@Valid @RequestBody EmployeeRequest command) { return Map.of("id", catalog.employee(command)); }
     @PutMapping("/employees/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
-    void employee(@PathVariable long id, @Valid @RequestBody Commands.Employee command) { personnel.updateEmployee(id, command); }
+    void employee(@PathVariable long id, @Valid @RequestBody EmployeeRequest command) { personnel.updateEmployee(id, command); }
     @PutMapping("/employees/{id}/status") @ResponseStatus(HttpStatus.NO_CONTENT)
-    void employeeStatus(@PathVariable long id, @Valid @RequestBody Commands.EmployeeStatus command) { personnel.employeeStatus(id, command); }
+    void employeeStatus(@PathVariable long id, @Valid @RequestBody EmployeeStatusRequest command) { personnel.employeeStatus(id, command); }
     @PostMapping("/users") @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Long> user(@Valid @RequestBody Commands.User command) { return Map.of("id", catalog.user(command)); }
+    Map<String, Long> user(@Valid @RequestBody UserRequest command) { return Map.of("id", catalog.user(command)); }
     @GetMapping("/users") List<UserResponse> users() { return personnel.users(); }
     @PutMapping("/users/{id}/status") @ResponseStatus(HttpStatus.NO_CONTENT)
-    void userStatus(@PathVariable long id, @Valid @RequestBody Commands.UserStatus command) { personnel.userStatus(id, command); }
+    void userStatus(@PathVariable long id, @Valid @RequestBody UserStatusRequest command) { personnel.userStatus(id, command); }
     @PostMapping("/bonuses/adjustments") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> bonusAdjustment(@Valid @RequestBody Commands.BonusAdjustment command) { return Map.of("id", payroll.adjustBonus(command)); }
     @GetMapping("/bonuses/balances") List<Map<String, Object>> bonusBalances() { return payroll.balances(); }

@@ -12,23 +12,9 @@ public final class Commands {
     private Commands() {}
 
     public record Named(@NotBlank @Size(max = 150) String name) {}
-    public record Supplier(@NotBlank @Size(max = 200) String name, @Size(max = 40) String phone) {}
-    public record Employee(@NotBlank @Size(max = 200) String fullName, @Size(max = 40) String phone,
-                           @NotNull @DecimalMin("0") @DecimalMax("1") @Digits(integer = 1, fraction = 4) BigDecimal bonusRate) {}
-    public record User(@NotNull @Positive Long employeeId,
-                       @NotBlank @Pattern(regexp = "[a-zA-Z0-9._-]{3,100}") String username,
-                       @NotBlank @Size(min = 12, max = 72) String password,
-                       @NotNull Role role) {
-        @Override public String toString() { return "User[username=" + username + ", password=REDACTED]"; }
-    }
-    public enum Role { OWNER, SELLER }
     public enum PaymentMethod { CASH, KASPI_PAY }
     public enum FinanceMethod { CASH, KASPI_PAY, BANK_TRANSFER }
     public enum StaffPaymentType { BONUS, SALARY }
-    public record Product(@NotBlank @Size(max = 250) String name, @NotBlank @Size(max = 100) String sku,
-                          @Size(min = 1, max = 100) String barcode, @Positive Long categoryId,
-                          @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal sellingPrice,
-                          @Min(0) int lowStockThreshold) {}
     public record PurchaseItem(@Positive long productId, @Min(1) @Max(1000000) int quantity,
                                @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal unitCost) {}
     public record Purchase(@NotNull UUID requestKey, @Positive long supplierId,
@@ -66,8 +52,6 @@ public final class Commands {
                                @Digits(integer = 17, fraction = 2) BigDecimal amount,
                                @NotNull FinanceMethod method, @NotBlank @Size(max = 2000) String reason,
                                @PastOrPresent Instant paidAt) {}
-    public record EmployeeStatus(boolean active, @NotBlank @Size(max = 2000) String reason) {}
-    public record UserStatus(boolean active, @NotBlank @Size(max = 2000) String reason) {}
     public record InventoryItem(@Positive long productId, @Min(0) @Max(1000000000) long actualQuantity,
                                 @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal excessUnitCost) {}
     public record Inventory(@NotNull UUID requestKey, @NotBlank @Size(max = 2000) String reason,

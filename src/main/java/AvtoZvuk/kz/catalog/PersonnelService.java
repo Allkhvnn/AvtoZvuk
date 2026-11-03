@@ -1,8 +1,7 @@
 package AvtoZvuk.kz.catalog;
 
 import AvtoZvuk.kz.accounting.AuditService;
-import AvtoZvuk.kz.api.Commands;
-import AvtoZvuk.kz.api.dto.personnel.UserResponse;
+import AvtoZvuk.kz.api.dto.personnel.*;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +20,7 @@ public class PersonnelService {
     private final CatalogQueryRepository queries;
 
     @Transactional
-    public void updateEmployee(long id, Commands.Employee command) {
+    public void updateEmployee(long id, EmployeeRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         db.one("SELECT id FROM employees WHERE id = ? FOR UPDATE", id);
@@ -31,7 +30,7 @@ public class PersonnelService {
     }
 
     @Transactional
-    public void employeeStatus(long id, Commands.EmployeeStatus command) {
+    public void employeeStatus(long id, EmployeeStatusRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         var employee = db.one("SELECT id, active FROM employees WHERE id = ? FOR UPDATE", id);
@@ -51,7 +50,7 @@ public class PersonnelService {
     }
 
     @Transactional
-    public void userStatus(long id, Commands.UserStatus command) {
+    public void userStatus(long id, UserStatusRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         var user = db.one("""

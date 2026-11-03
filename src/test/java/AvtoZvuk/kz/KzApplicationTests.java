@@ -2,6 +2,11 @@ package AvtoZvuk.kz;
 
 import AvtoZvuk.kz.accounting.*;
 import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.catalog.ProductRequest;
+import AvtoZvuk.kz.api.dto.catalog.SupplierRequest;
+import AvtoZvuk.kz.api.dto.personnel.EmployeeRequest;
+import AvtoZvuk.kz.api.dto.personnel.EmployeeStatusRequest;
+import AvtoZvuk.kz.api.dto.personnel.UserStatusRequest;
 import AvtoZvuk.kz.catalog.CatalogService;
 import AvtoZvuk.kz.catalog.PersonnelService;
 import AvtoZvuk.kz.common.*;
@@ -73,7 +78,7 @@ class KzApplicationTests {
         ownerUser = db.id("INSERT INTO app_users(employee_id, username, password_hash, role) VALUES (?, ?, ?, 'OWNER') RETURNING id", ownerEmployee, ownerName, hash);
         sellerUser = db.id("INSERT INTO app_users(employee_id, username, password_hash, role) VALUES (?, ?, ?, 'SELLER') RETURNING id", sellerEmployee, sellerName, hash);
         login(ownerName);
-        supplier = catalog.supplier(new Commands.Supplier("Supplier " + suffix, null));
+        supplier = catalog.supplier(new SupplierRequest("Supplier " + suffix, null));
         product = newProduct();
     }
 
@@ -191,7 +196,7 @@ class KzApplicationTests {
     @Test
     void sellerPermissionsAndDisabledAccountAreCheckedInServices() {
         login(sellerName);
-        assertThatThrownBy(() -> catalog.supplier(new Commands.Supplier("Forbidden", null))).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> catalog.supplier(new SupplierRequest("Forbidden", null))).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> sales.sell(new Commands.Sale(UUID.randomUUID(), ownerEmployee,
                 List.of(new Commands.SaleItem(product, 1, n("20"), n("0"))), List.of(payment("20")))))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("прав");
@@ -296,22 +301,22 @@ class KzApplicationTests {
 
     @Test
     void personnelStatusDisablesAccountsAndRequiresExplicitReactivation() {
-        personnel.updateEmployee(sellerEmployee, new Commands.Employee("Updated seller", "+77000000000", n("0.075")));
+        personnel.updateEmployee(sellerEmployee, new EmployeeRequest("Updated seller", "+77000000000", n("0.075")));
         assertThat(catalog.employees()).filteredOn(row -> row.id() == sellerEmployee)
                 .singleElement().satisfies(row -> assertThat(row.bonusRate()).isEqualTo(n("0.0750")));
-        personnel.employeeStatus(sellerEmployee, new Commands.EmployeeStatus(false, "Employee left"));
+        personnel.employeeStatus(sellerEmployee, new EmployeeStatusRequest(false, "Employee left"));
         assertThat(db.one("SELECT active FROM app_users WHERE id = ?", sellerUser).get("active")).isEqualTo(false);
         login(sellerName);
         assertThatThrownBy(() -> documents.sales(10, 0)).isInstanceOf(BusinessException.class);
         login(ownerName);
-        assertThatThrownBy(() -> personnel.userStatus(sellerUser, new Commands.UserStatus(true, "Return")))
+        assertThatThrownBy(() -> personnel.userStatus(sellerUser, new UserStatusRequest(true, "Return")))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Сначала активируйте");
-        personnel.employeeStatus(sellerEmployee, new Commands.EmployeeStatus(true, "Rehired"));
-        personnel.userStatus(sellerUser, new Commands.UserStatus(true, "Access restored"));
+        personnel.employeeStatus(sellerEmployee, new EmployeeStatusRequest(true, "Rehired"));
+        personnel.userStatus(sellerUser, new UserStatusRequest(true, "Access restored"));
         login(sellerName);
         assertThat(documents.sales(10, 0)).isEmpty();
         login(ownerName);
-        assertThatThrownBy(() -> personnel.userStatus(ownerUser, new Commands.UserStatus(false, "Self")))
+        assertThatThrownBy(() -> personnel.userStatus(ownerUser, new UserStatusRequest(false, "Self")))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("собственную");
     }
 
@@ -429,7 +434,7 @@ class KzApplicationTests {
     }
 
     private long newProduct() {
-        return catalog.saveProduct(null, new Commands.Product("Speaker", "SKU-" + UUID.randomUUID(), null, null, n("200"), 1)).getId();
+        return catalog.saveProduct(null, new ProductRequest("Speaker", "SKU-" + UUID.randomUUID(), null, null, n("200"), 1)).getId();
     }
     private long receive(long productId, int quantity, String cost) {
         return purchases.receive(new Commands.Purchase(UUID.randomUUID(), supplier, List.of(new Commands.PurchaseItem(productId, quantity, n(cost)))));

@@ -20,17 +20,17 @@ public class CatalogController {
     @GetMapping("/products")
     List<ProductResponse> products(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return catalog.products(limit, offset); }
     @PostMapping("/products") @ResponseStatus(HttpStatus.CREATED)
-    Product product(@Valid @RequestBody Commands.Product command) { return catalog.saveProduct(null, command); }
+    Product product(@Valid @RequestBody ProductRequest command) { return catalog.saveProduct(null, command); }
     @PutMapping("/products/{id}")
-    Product product(@PathVariable long id, @Valid @RequestBody Commands.Product command) { return catalog.saveProduct(id, command); }
+    Product product(@PathVariable long id, @Valid @RequestBody ProductRequest command) { return catalog.saveProduct(id, command); }
     @PostMapping("/products/{id}/deactivate") @ResponseStatus(HttpStatus.NO_CONTENT)
     void deactivate(@PathVariable long id) { catalog.deactivateProduct(id); }
     @GetMapping("/categories")
     List<CategoryResponse> categories() { return catalog.categories(); }
     @PostMapping("/categories") @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Long> category(@Valid @RequestBody Commands.Named command) { return Map.of("id", catalog.category(command)); }
+    Map<String, Long> category(@Valid @RequestBody CategoryRequest command) { return Map.of("id", catalog.category(command)); }
     @GetMapping("/suppliers")
     List<SupplierResponse> suppliers() { return catalog.suppliers(); }
     @PostMapping("/suppliers") @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Long> supplier(@Valid @RequestBody Commands.Supplier command) { return Map.of("id", catalog.supplier(command)); }
+    Map<String, Long> supplier(@Valid @RequestBody SupplierRequest command) { return Map.of("id", catalog.supplier(command)); }
 }
