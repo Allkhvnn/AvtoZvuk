@@ -1,6 +1,8 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.common.ReversalRequest;
+import AvtoZvuk.kz.api.dto.finance.ExpenseCategoryRequest;
+import AvtoZvuk.kz.api.dto.finance.ExpenseRequest;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +26,7 @@ public class FinanceService {
     private final AuditService audit;
 
     @Transactional
-    public long expenseCategory(Commands.Named command) {
+    public long expenseCategory(ExpenseCategoryRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         long id = db.id("INSERT INTO expense_categories(name) VALUES (?) RETURNING id", command.name().trim());
@@ -39,7 +41,7 @@ public class FinanceService {
     }
 
     @Transactional
-    public long expense(Commands.Expense command) {
+    public long expense(ExpenseRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         String fingerprint = Rules.fingerprint(actor.id() + ":" + command);
@@ -58,7 +60,7 @@ public class FinanceService {
     }
 
     @Transactional
-    public long reverseExpense(long originalId, Commands.Reversal command) {
+    public long reverseExpense(long originalId, ReversalRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         String fingerprint = Rules.fingerprint(actor.id() + ":EXPENSE_REVERSAL:" + originalId + ":" + command);

@@ -1,6 +1,8 @@
 package AvtoZvuk.kz.accounting;
 
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.common.ReversalRequest;
+import AvtoZvuk.kz.api.dto.personnel.BonusAdjustmentRequest;
+import AvtoZvuk.kz.api.dto.personnel.StaffPaymentRequest;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +26,7 @@ public class PayrollService {
     private final AuditService audit;
 
     @Transactional
-    public long adjustBonus(Commands.BonusAdjustment command) {
+    public long adjustBonus(BonusAdjustmentRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         if (command.amount().compareTo(BigDecimal.ZERO) == 0)
@@ -43,14 +45,14 @@ public class PayrollService {
     }
 
     @Transactional
-    public long pay(Commands.StaffPayment command) {
+    public long pay(StaffPaymentRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         String fingerprint = Rules.fingerprint(actor.id() + ":" + command);
         var replay = documents.replay(DocumentSupport.Kind.STAFF_PAYMENT, command.requestKey(), fingerprint);
         if (replay.isPresent()) return replay.get();
         lockEmployee(command.employeeId(), false);
-        if (command.type() == Commands.StaffPaymentType.BONUS) {
+        if (command.type() == StaffPaymentRequest.Type.BONUS) {
             BigDecimal balance = db.amount("SELECT balance FROM employee_bonus_balances WHERE employee_id = ?",
                     command.employeeId());
             if (balance.compareTo(BigDecimal.ZERO) <= 0 || command.amount().compareTo(balance) > 0)
@@ -69,7 +71,7 @@ public class PayrollService {
     }
 
     @Transactional
-    public long reversePayment(long originalId, Commands.Reversal command) {
+    public long reversePayment(long originalId, ReversalRequest command) {
         var actor = actors.owner();
         rules.validate(command);
         String fingerprint = Rules.fingerprint(actor.id() + ":PAYMENT_REVERSAL:" + originalId + ":" + command);

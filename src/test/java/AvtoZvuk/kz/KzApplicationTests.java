@@ -1,12 +1,15 @@
 package AvtoZvuk.kz;
 
 import AvtoZvuk.kz.accounting.*;
-import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.common.ReversalRequest;
+import AvtoZvuk.kz.api.dto.finance.*;
 import AvtoZvuk.kz.api.dto.catalog.ProductRequest;
 import AvtoZvuk.kz.api.dto.catalog.SupplierRequest;
 import AvtoZvuk.kz.api.dto.personnel.EmployeeRequest;
 import AvtoZvuk.kz.api.dto.personnel.EmployeeStatusRequest;
 import AvtoZvuk.kz.api.dto.personnel.UserStatusRequest;
+import AvtoZvuk.kz.api.dto.personnel.BonusAdjustmentRequest;
+import AvtoZvuk.kz.api.dto.personnel.StaffPaymentRequest;
 import AvtoZvuk.kz.api.dto.inventory.*;
 import AvtoZvuk.kz.api.dto.trading.*;
 import AvtoZvuk.kz.catalog.CatalogService;
@@ -247,40 +250,40 @@ class KzApplicationTests {
 
     @Test
     void expenseIsIdempotentAndReversalPreservesHistory() {
-        long category = finance.expenseCategory(new Commands.Named("Rent " + UUID.randomUUID()));
-        var command = new Commands.Expense(UUID.randomUUID(), category, n("150000"),
-                Commands.FinanceMethod.BANK_TRANSFER, "Monthly rent", null);
+        long category = finance.expenseCategory(new ExpenseCategoryRequest("Rent " + UUID.randomUUID()));
+        var command = new ExpenseRequest(UUID.randomUUID(), category, n("150000"),
+                FinanceMethod.BANK_TRANSFER, "Monthly rent", null);
         long expense = finance.expense(command);
         assertThat(finance.expense(command)).isEqualTo(expense);
         assertThat(finance.expenseTotals().get("total")).isEqualTo(n("150000.00"));
-        var reversal = new Commands.Reversal(UUID.randomUUID(), "Entered twice");
+        var reversal = new ReversalRequest(UUID.randomUUID(), "Entered twice");
         long reversed = finance.reverseExpense(expense, reversal);
         assertThat(finance.reverseExpense(expense, reversal)).isEqualTo(reversed);
         assertThat(finance.expenseTotals().get("total")).isEqualTo(n("0.00"));
         assertThat(finance.expenses(10, 0)).filteredOn(row -> Objects.equals(row.get("id"), expense))
                 .singleElement().satisfies(row -> assertThat(row.get("reversed")).isEqualTo(true));
         assertThatThrownBy(() -> finance.reverseExpense(expense,
-                new Commands.Reversal(UUID.randomUUID(), "Again")))
+                new ReversalRequest(UUID.randomUUID(), "Again")))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("уже отменен");
     }
 
     @Test
     void bonusAdjustmentsPaymentsSalaryAndReversalAreSeparate() {
-        var adjustment = new Commands.BonusAdjustment(UUID.randomUUID(), sellerEmployee, n("100"), "Opening bonus balance");
+        var adjustment = new BonusAdjustmentRequest(UUID.randomUUID(), sellerEmployee, n("100"), "Opening bonus balance");
         long adjustmentId = payroll.adjustBonus(adjustment);
         assertThat(payroll.adjustBonus(adjustment)).isEqualTo(adjustmentId);
-        var bonusPayment = new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
-                Commands.StaffPaymentType.BONUS, n("60"), Commands.FinanceMethod.CASH, "Bonus payout", null);
+        var bonusPayment = new StaffPaymentRequest(UUID.randomUUID(), sellerEmployee,
+                StaffPaymentRequest.Type.BONUS, n("60"), FinanceMethod.CASH, "Bonus payout", null);
         long payment = payroll.pay(bonusPayment);
         assertThat(payroll.pay(bonusPayment)).isEqualTo(payment);
         assertThat(balance(sellerEmployee)).isEqualByComparingTo("40");
-        assertThatThrownBy(() -> payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
-                Commands.StaffPaymentType.BONUS, n("40.01"), Commands.FinanceMethod.CASH, "Too much", null)))
+        assertThatThrownBy(() -> payroll.pay(new StaffPaymentRequest(UUID.randomUUID(), sellerEmployee,
+                StaffPaymentRequest.Type.BONUS, n("40.01"), FinanceMethod.CASH, "Too much", null)))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("превышает");
-        long salary = payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
-                Commands.StaffPaymentType.SALARY, n("200000"), Commands.FinanceMethod.BANK_TRANSFER, "Salary", null));
+        long salary = payroll.pay(new StaffPaymentRequest(UUID.randomUUID(), sellerEmployee,
+                StaffPaymentRequest.Type.SALARY, n("200000"), FinanceMethod.BANK_TRANSFER, "Salary", null));
         assertThat(balance(sellerEmployee)).isEqualByComparingTo("40");
-        var reversal = new Commands.Reversal(UUID.randomUUID(), "Wrong cash box");
+        var reversal = new ReversalRequest(UUID.randomUUID(), "Wrong cash box");
         long reverse = payroll.reversePayment(payment, reversal);
         assertThat(payroll.reversePayment(payment, reversal)).isEqualTo(reverse);
         assertThat(balance(sellerEmployee)).isEqualByComparingTo("100");
@@ -290,12 +293,12 @@ class KzApplicationTests {
 
     @Test
     void concurrentBonusPaymentsCannotExceedBalance() throws Exception {
-        payroll.adjustBonus(new Commands.BonusAdjustment(UUID.randomUUID(), sellerEmployee, n("100"), "Competition test"));
+        payroll.adjustBonus(new BonusAdjustmentRequest(UUID.randomUUID(), sellerEmployee, n("100"), "Competition test"));
         var outcomes = concurrently(
-                () -> payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
-                        Commands.StaffPaymentType.BONUS, n("70"), Commands.FinanceMethod.CASH, "First", null)),
-                () -> payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
-                        Commands.StaffPaymentType.BONUS, n("70"), Commands.FinanceMethod.CASH, "Second", null)));
+                () -> payroll.pay(new StaffPaymentRequest(UUID.randomUUID(), sellerEmployee,
+                        StaffPaymentRequest.Type.BONUS, n("70"), FinanceMethod.CASH, "First", null)),
+                () -> payroll.pay(new StaffPaymentRequest(UUID.randomUUID(), sellerEmployee,
+                        StaffPaymentRequest.Type.BONUS, n("70"), FinanceMethod.CASH, "Second", null)));
         assertThat(outcomes.stream().filter(Long.class::isInstance).count()).isEqualTo(1);
         assertThat(outcomes.stream().filter(BusinessException.class::isInstance).count()).isEqualTo(1);
         assertThat(balance(sellerEmployee)).isEqualByComparingTo("30");
@@ -330,13 +333,13 @@ class KzApplicationTests {
         long sale = sales.sell(new SaleRequest(UUID.randomUUID(), sellerEmployee,
                 List.of(new SaleItemRequest(product, 2, n("200"), n("20"))), List.of(payment("380"))));
         returns.returnSale(returnCommand(sale, line(sale), "190", true));
-        long expenseCategory = finance.expenseCategory(new Commands.Named("Report expense " + UUID.randomUUID()));
-        finance.expense(new Commands.Expense(UUID.randomUUID(), expenseCategory, n("50"),
-                Commands.FinanceMethod.CASH, "Report expense", null));
-        payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
-                Commands.StaffPaymentType.BONUS, n("5"), Commands.FinanceMethod.CASH, "Bonus report", null));
-        payroll.pay(new Commands.StaffPayment(UUID.randomUUID(), sellerEmployee,
-                Commands.StaffPaymentType.SALARY, n("30"), Commands.FinanceMethod.CASH, "Salary report", null));
+        long expenseCategory = finance.expenseCategory(new ExpenseCategoryRequest("Report expense " + UUID.randomUUID()));
+        finance.expense(new ExpenseRequest(UUID.randomUUID(), expenseCategory, n("50"),
+                FinanceMethod.CASH, "Report expense", null));
+        payroll.pay(new StaffPaymentRequest(UUID.randomUUID(), sellerEmployee,
+                StaffPaymentRequest.Type.BONUS, n("5"), FinanceMethod.CASH, "Bonus report", null));
+        payroll.pay(new StaffPaymentRequest(UUID.randomUUID(), sellerEmployee,
+                StaffPaymentRequest.Type.SALARY, n("30"), FinanceMethod.CASH, "Salary report", null));
 
         var after = reports.summary(today, today);
         assertDelta(before.salesRevenue(), after.salesRevenue(), "380");

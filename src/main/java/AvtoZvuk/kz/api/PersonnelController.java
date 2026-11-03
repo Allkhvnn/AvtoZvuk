@@ -4,6 +4,7 @@ import AvtoZvuk.kz.accounting.PayrollService;
 import AvtoZvuk.kz.catalog.CatalogService;
 import AvtoZvuk.kz.catalog.PersonnelService;
 import AvtoZvuk.kz.api.dto.personnel.*;
+import AvtoZvuk.kz.api.dto.common.ReversalRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -33,12 +34,12 @@ public class PersonnelController {
     @PutMapping("/users/{id}/status") @ResponseStatus(HttpStatus.NO_CONTENT)
     void userStatus(@PathVariable long id, @Valid @RequestBody UserStatusRequest command) { personnel.userStatus(id, command); }
     @PostMapping("/bonuses/adjustments") @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Long> bonusAdjustment(@Valid @RequestBody Commands.BonusAdjustment command) { return Map.of("id", payroll.adjustBonus(command)); }
+    Map<String, Long> bonusAdjustment(@Valid @RequestBody BonusAdjustmentRequest command) { return Map.of("id", payroll.adjustBonus(command)); }
     @GetMapping("/bonuses/balances") List<Map<String, Object>> bonusBalances() { return payroll.balances(); }
     @GetMapping("/employees/{id}/bonuses") List<Map<String, Object>> bonusEntries(@PathVariable long id, @RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return payroll.bonusEntries(id, limit, offset); }
     @PostMapping("/staff-payments") @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Long> staffPayment(@Valid @RequestBody Commands.StaffPayment command) { return Map.of("id", payroll.pay(command)); }
+    Map<String, Long> staffPayment(@Valid @RequestBody StaffPaymentRequest command) { return Map.of("id", payroll.pay(command)); }
     @PostMapping("/staff-payments/{id}/reversal") @ResponseStatus(HttpStatus.CREATED)
-    Map<String, Long> reverseStaffPayment(@PathVariable long id, @Valid @RequestBody Commands.Reversal command) { return Map.of("id", payroll.reversePayment(id, command)); }
+    Map<String, Long> reverseStaffPayment(@PathVariable long id, @Valid @RequestBody ReversalRequest command) { return Map.of("id", payroll.reversePayment(id, command)); }
     @GetMapping("/employees/{id}/staff-payments") List<Map<String, Object>> staffPayments(@PathVariable long id, @RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return payroll.payments(id, limit, offset); }
 }
