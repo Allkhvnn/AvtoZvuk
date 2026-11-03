@@ -1,6 +1,7 @@
 package AvtoZvuk.kz.api;
 
 import AvtoZvuk.kz.accounting.*;
+import AvtoZvuk.kz.api.dto.trading.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,13 +24,13 @@ public class TradingController {
     Map<String, Long> opening(@Valid @RequestBody Commands.OpeningStock command) { return Map.of("id", stock.opening(command)); }
     @PostMapping("/purchases") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> purchase(@Valid @RequestBody Commands.Purchase command) { return Map.of("id", purchases.receive(command)); }
-    @GetMapping("/purchases") List<Map<String, Object>> purchases(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return documents.purchases(limit, offset); }
-    @GetMapping("/purchases/{id}") DocumentQueries.Document purchase(@PathVariable long id) { return documents.purchase(id); }
+    @GetMapping("/purchases") List<PurchaseSummaryResponse> purchases(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return documents.purchases(limit, offset); }
+    @GetMapping("/purchases/{id}") PurchaseDocumentResponse purchase(@PathVariable long id) { return documents.purchase(id); }
     @PostMapping("/sales") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> sale(@Valid @RequestBody Commands.Sale command) { return Map.of("id", sales.sell(command)); }
-    @GetMapping("/sales") List<Map<String, Object>> sales(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return documents.sales(limit, offset); }
-    @GetMapping("/sales/{id}") DocumentQueries.Document sale(@PathVariable long id) { return documents.sale(id); }
+    @GetMapping("/sales") List<SaleSummaryResponse> sales(@RequestParam(defaultValue = "50") int limit, @RequestParam(defaultValue = "0") int offset) { return documents.sales(limit, offset); }
+    @GetMapping("/sales/{id}") SaleDocumentResponse sale(@PathVariable long id) { return documents.sale(id); }
     @PostMapping("/returns") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> returned(@Valid @RequestBody Commands.SaleReturn command) { return Map.of("id", returns.returnSale(command)); }
-    @GetMapping("/returns/{id}") DocumentQueries.Document returned(@PathVariable long id) { return documents.returned(id); }
+    @GetMapping("/returns/{id}") ReturnDocumentResponse returned(@PathVariable long id) { return documents.returned(id); }
 }
