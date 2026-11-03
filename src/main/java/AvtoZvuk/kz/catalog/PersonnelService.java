@@ -2,6 +2,7 @@ package AvtoZvuk.kz.catalog;
 
 import AvtoZvuk.kz.accounting.AuditService;
 import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.personnel.UserResponse;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +18,7 @@ public class PersonnelService {
     private final CurrentActor actors;
     private final Rules rules;
     private final AuditService audit;
+    private final CatalogQueryRepository queries;
 
     @Transactional
     public void updateEmployee(long id, Commands.Employee command) {
@@ -44,13 +45,9 @@ public class PersonnelService {
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> users() {
+    public List<UserResponse> users() {
         actors.owner();
-        return db.rows("""
-                SELECT u.id, u.employee_id AS "employeeId", e.full_name AS "employeeName", u.username,
-                    u.role, u.active, e.active AS "employeeActive", u.created_at AS "createdAt"
-                FROM app_users u LEFT JOIN employees e ON e.id = u.employee_id ORDER BY u.id
-                """);
+        return queries.users();
     }
 
     @Transactional

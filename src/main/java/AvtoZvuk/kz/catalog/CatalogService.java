@@ -2,6 +2,8 @@ package AvtoZvuk.kz.catalog;
 
 import AvtoZvuk.kz.accounting.AuditService;
 import AvtoZvuk.kz.api.Commands;
+import AvtoZvuk.kz.api.dto.catalog.*;
+import AvtoZvuk.kz.api.dto.personnel.EmployeeResponse;
 import AvtoZvuk.kz.common.*;
 import AvtoZvuk.kz.security.CurrentActor;
 import lombok.RequiredArgsConstructor;
@@ -12,29 +14,23 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class CatalogService {
     private final Database db;
     private final ProductRepository products;
+    private final CatalogQueryRepository queries;
     private final CurrentActor actors;
     private final Rules rules;
     private final AuditService audit;
     private final PasswordEncoder passwords;
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> products(int limit, int offset) {
+    public List<ProductResponse> products(int limit, int offset) {
         var actor = actors.get();
         if (limit < 1 || limit > 100 || offset < 0) throw BusinessException.invalid("Некорректная страница");
-        return db.rows("""
-                SELECT p.id, p.category_id AS "categoryId", p.name, p.sku, p.barcode,
-                    p.selling_price AS "sellingPrice", p.low_stock_threshold AS "lowStockThreshold",
-                    p.active, s.quantity, s.low_stock AS "lowStock"
-                FROM products p JOIN product_stock s ON s.product_id = p.id
-                WHERE (? OR p.active) ORDER BY p.id LIMIT ? OFFSET ?
-                """, actor.owner(), limit, offset);
+        return queries.products(actor.owner(), limit, offset);
     }
 
     @Transactional
@@ -109,9 +105,9 @@ public class CatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> categories() { actors.get(); return db.rows("SELECT id, name FROM categories WHERE active ORDER BY name"); }
+    public List<CategoryResponse> categories() { actors.get(); return queries.categories(); }
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> suppliers() { actors.owner(); return db.rows("SELECT id, name, phone FROM suppliers WHERE active ORDER BY name LIMIT 500"); }
+    public List<SupplierResponse> suppliers() { actors.owner(); return queries.suppliers(); }
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> employees() { actors.owner(); return db.rows("SELECT id, full_name AS \"fullName\", phone, bonus_rate AS \"bonusRate\", active FROM employees ORDER BY id LIMIT 500"); }
+    public List<EmployeeResponse> employees() { actors.owner(); return queries.employees(); }
 }

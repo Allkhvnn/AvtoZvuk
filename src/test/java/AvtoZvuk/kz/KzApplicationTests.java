@@ -297,8 +297,8 @@ class KzApplicationTests {
     @Test
     void personnelStatusDisablesAccountsAndRequiresExplicitReactivation() {
         personnel.updateEmployee(sellerEmployee, new Commands.Employee("Updated seller", "+77000000000", n("0.075")));
-        assertThat(catalog.employees()).filteredOn(row -> Objects.equals(row.get("id"), sellerEmployee))
-                .singleElement().satisfies(row -> assertThat(row.get("bonusRate")).isEqualTo(n("0.0750")));
+        assertThat(catalog.employees()).filteredOn(row -> row.id() == sellerEmployee)
+                .singleElement().satisfies(row -> assertThat(row.bonusRate()).isEqualTo(n("0.0750")));
         personnel.employeeStatus(sellerEmployee, new Commands.EmployeeStatus(false, "Employee left"));
         assertThat(db.one("SELECT active FROM app_users WHERE id = ?", sellerUser).get("active")).isEqualTo(false);
         login(sellerName);

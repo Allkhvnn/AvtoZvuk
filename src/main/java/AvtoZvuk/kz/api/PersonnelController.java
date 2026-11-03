@@ -3,6 +3,7 @@ package AvtoZvuk.kz.api;
 import AvtoZvuk.kz.accounting.PayrollService;
 import AvtoZvuk.kz.catalog.CatalogService;
 import AvtoZvuk.kz.catalog.PersonnelService;
+import AvtoZvuk.kz.api.dto.personnel.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,7 +20,7 @@ public class PersonnelController {
     private final PersonnelService personnel;
     private final PayrollService payroll;
 
-    @GetMapping("/employees") List<Map<String, Object>> employees() { return catalog.employees(); }
+    @GetMapping("/employees") List<EmployeeResponse> employees() { return catalog.employees(); }
     @PostMapping("/employees") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> employee(@Valid @RequestBody Commands.Employee command) { return Map.of("id", catalog.employee(command)); }
     @PutMapping("/employees/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -28,7 +29,7 @@ public class PersonnelController {
     void employeeStatus(@PathVariable long id, @Valid @RequestBody Commands.EmployeeStatus command) { personnel.employeeStatus(id, command); }
     @PostMapping("/users") @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> user(@Valid @RequestBody Commands.User command) { return Map.of("id", catalog.user(command)); }
-    @GetMapping("/users") List<Map<String, Object>> users() { return personnel.users(); }
+    @GetMapping("/users") List<UserResponse> users() { return personnel.users(); }
     @PutMapping("/users/{id}/status") @ResponseStatus(HttpStatus.NO_CONTENT)
     void userStatus(@PathVariable long id, @Valid @RequestBody Commands.UserStatus command) { personnel.userStatus(id, command); }
     @PostMapping("/bonuses/adjustments") @ResponseStatus(HttpStatus.CREATED)
