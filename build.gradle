@@ -41,3 +41,26 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+def frontendDirectory = layout.projectDirectory.dir('design')
+def frontendCommand = System.getProperty('os.name').toLowerCase().contains('windows')
+		? ['cmd', '/c', 'corepack', 'pnpm', 'build']
+		: ['corepack', 'pnpm', 'build']
+
+tasks.register('frontendBuild', Exec) {
+	group = 'build'
+	description = 'Builds the React frontend for the production Spring Boot package.'
+	workingDir frontendDirectory
+	commandLine frontendCommand
+	inputs.dir(frontendDirectory.dir('src'))
+	inputs.files(frontendDirectory.file('index.html'), frontendDirectory.file('package.json'),
+			frontendDirectory.file('pnpm-lock.yaml'), frontendDirectory.file('vite.config.ts'))
+	outputs.dir(frontendDirectory.dir('dist'))
+}
+
+tasks.named('bootJar') {
+	dependsOn tasks.named('frontendBuild')
+	from(frontendDirectory.dir('dist')) {
+		into 'BOOT-INF/classes/static'
+	}
+}

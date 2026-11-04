@@ -34,7 +34,8 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth.requestMatchers("/api/csrf", "/api/login").permitAll()
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**").authenticated()
+                        .anyRequest().permitAll())
                 .formLogin(form -> form.loginProcessingUrl("/api/login")
                         .successHandler((req, res, auth) -> res.setStatus(204))
                         .failureHandler((req, res, error) -> res.setStatus(401)).permitAll())
