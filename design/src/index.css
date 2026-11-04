@@ -295,16 +295,14 @@ td strong { font-weight: 700; }
 .modal-close { width: 34px; height: 34px; border-radius: 9px; color: var(--muted); background: var(--surface-muted); font-size: 22px; }
 .sale-modal > .form-error, .sale-modal > .field { margin: 16px 26px 0; }
 .field { display: grid; gap: 7px; color: #5f636b; font-size: 10px; font-weight: 700; }
-.field input, .field select, .product-picker select, .sale-line input { height: 40px; padding: 0 11px; outline: none; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-muted); font-size: 10px; }
-.field input:focus, .field select:focus, .product-picker select:focus, .sale-line input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field input, .field select, .product-picker input, .product-picker select, .sale-line input { height: 40px; padding: 0 11px; outline: none; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-muted); font-size: 10px; }
+.field input:focus, .field select:focus, .product-picker input:focus, .product-picker select:focus, .sale-line input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .sale-section { padding: 20px 26px; border-bottom: 1px solid var(--line); }
 .sale-section-title { display: flex; justify-content: space-between; margin-bottom: 12px; }
 .sale-section-title > div { display: flex; align-items: baseline; gap: 10px; }
 .sale-section-title strong { font-size: 12px; }
 .sale-section-title span { color: var(--muted); font-size: 9px; }
-.product-picker { display: grid; grid-template-columns: 1fr auto; gap: 9px; }
-.product-picker .secondary-button { width: auto; margin: 0; padding: 0 16px; }
-.product-picker button:disabled { cursor: not-allowed; opacity: .45; }
+.product-picker { display: grid; grid-template-columns: minmax(180px, .65fr) minmax(260px, 1.35fr); gap: 9px; }
 .sale-lines { display: grid; gap: 8px; margin-top: 12px; }
 .sale-line { display: grid; grid-template-columns: minmax(190px, 1fr) 80px 100px 105px 28px; align-items: end; gap: 9px; padding: 11px; border: 1px solid var(--line); border-radius: 10px; }
 .sale-product { display: grid; align-self: center; gap: 4px; min-width: 0; }
@@ -331,6 +329,7 @@ td strong { font-weight: 700; }
 @media (max-width: 700px) {
   .sales-kpis { grid-template-columns: 1fr; }
   .sale-modal { margin: 0; min-height: 100vh; border-radius: 0; }
+  .product-picker { grid-template-columns: 1fr; }
   .sale-line { grid-template-columns: 1fr 1fr; }
   .sale-product { grid-column: 1 / -1; }
   .remove-line { position: absolute; right: 37px; }

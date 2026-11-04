@@ -15,7 +15,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [sellerId, setSellerId] = useState<number | null>(actor.employeeId);
   const [lines, setLines] = useState<Line[]>([]);
-  const [selected, setSelected] = useState('');
+  const [productQuery, setProductQuery] = useState('');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
   const [cash, setCash] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -38,6 +38,13 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
   }, [open, actor.role]);
 
   const productById = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
+  const availableProducts = useMemo(() => {
+    const normalizedQuery = productQuery.trim().toLocaleLowerCase('ru');
+    return products.filter(product => {
+      if (lines.some(line => line.productId === product.id)) return false;
+      return !normalizedQuery || `${product.name} ${product.sku}`.toLocaleLowerCase('ru').includes(normalizedQuery);
+    });
+  }, [lines, productQuery, products]);
   const total = roundMoney(lines.reduce((sum, line) => {
     const product = productById.get(line.productId);
     return sum + (product ? product.sellingPrice * line.quantity - line.discountAmount : 0);
@@ -50,12 +57,13 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
     return sum + roundMoney(cumulative - Number(item.returnedAmount));
   }, 0));
 
-  function addLine() {
-    const id = Number(selected); if (!id || lines.some(line => line.productId === id)) return;
-    setLines(current => [...current, { productId: id, quantity: 1, discountAmount: 0 }]); setSelected('');
+  function addLine(id: number) {
+    if (!id || lines.some(line => line.productId === id)) return;
+    setLines(current => [...current, { productId: id, quantity: 1, discountAmount: 0 }]);
+    setProductQuery('');
   }
   function updateLine(id: number, patch: Partial<Line>) { setLines(current => current.map(line => line.productId === id ? { ...line, ...patch } : line)); }
-  function reset() { setLines([]); setSelected(''); setPaymentMode('CASH'); setCash(0); setError(''); }
+  function reset() { setLines([]); setProductQuery(''); setPaymentMode('CASH'); setCash(0); setError(''); }
   async function openDetail(id: number) {
     setDetailLoading(true); setError('');
     try { const value = await api.sale(id); setDetail(value); setReturnLines([]); setReturnReason(''); setReturnPayment('CASH'); setReturnCash(0); }
@@ -98,7 +106,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
       <div className="sale-modal-head"><div><p className="eyebrow">НОВАЯ ОПЕРАЦИЯ</p><h2>Оформление продажи</h2><p>Остаток будет списан после подтверждения.</p></div><button type="button" className="button modal-close" onClick={() => setOpen(false)} aria-label="Закрыть">×</button></div>
       {error && <div className="form-error" role="alert">{error}</div>}
       {actor.role === 'OWNER' && <label className="field">Продавец<select value={sellerId ?? ''} onChange={e => setSellerId(Number(e.target.value) || null)} required><option value="">Выберите сотрудника</option>{employees.map(employee => <option key={employee.id} value={employee.id}>{employee.fullName}</option>)}</select></label>}
-      <div className="sale-section"><div className="sale-section-title"><div><strong>Товары</strong><span>{lines.length} позиций</span></div></div><div className="product-picker"><select value={selected} onChange={e => setSelected(e.target.value)}><option value="">Найти товар по названию или артикулу</option>{products.filter(p => !lines.some(line => line.productId === p.id)).map(product => <option key={product.id} value={product.id}>{product.name} · {product.sku} · остаток {product.quantity}</option>)}</select><button type="button" className="button secondary-button" onClick={addLine} disabled={!selected}>Добавить</button></div>
+      <div className="sale-section"><div className="sale-section-title"><div><strong>Товары</strong><span>{lines.length} позиций</span></div></div><div className="product-picker"><input value={productQuery} onChange={e => setProductQuery(e.target.value)} placeholder="Поиск по названию или артикулу" aria-label="Поиск товара"/><select value="" onChange={e => addLine(Number(e.target.value))} aria-label="Добавить товар в чек"><option value="">{availableProducts.length ? 'Выберите товар — он сразу добавится в чек' : 'Товары не найдены'}</option>{availableProducts.map(product => <option key={product.id} value={product.id}>{product.name} · {product.sku} · остаток {product.quantity}</option>)}</select></div>
         <div className="sale-lines">{lines.map(line => { const product = productById.get(line.productId)!; const maxDiscount = product.sellingPrice * line.quantity; return <div className="sale-line" key={line.productId}><div className="sale-product"><strong>{product.name}</strong><span>{product.sku} · {money.format(product.sellingPrice)} · доступно {product.quantity}</span></div><label>Кол-во<input type="number" min="1" max={product.quantity} value={line.quantity} onChange={e => updateLine(line.productId, { quantity: Math.max(1, Math.min(product.quantity, Number(e.target.value))) })}/></label><label>Скидка<input type="number" min="0" max={maxDiscount} step="0.01" value={line.discountAmount} onChange={e => updateLine(line.productId, { discountAmount: Math.min(maxDiscount, Math.max(0, Number(e.target.value))) })}/></label><div className="line-total"><span>Итого</span><strong>{money.format(maxDiscount - line.discountAmount)}</strong></div><button type="button" className="remove-line" onClick={() => setLines(current => current.filter(item => item.productId !== line.productId))}>×</button></div>; })}{!lines.length && <div className="sale-empty">Выберите первый товар из списка</div>}</div>
       </div>
       <div className="sale-section"><div className="sale-section-title"><div><strong>Оплата</strong><span>Сумма способов оплаты должна совпасть с итогом</span></div></div><div className="payment-tabs">{([['CASH','Наличные'],['KASPI_PAY','Kaspi Pay'],['MIXED','Смешанная']] as const).map(([value,label]) => <button type="button" className={paymentMode === value ? 'active' : ''} onClick={() => { setPaymentMode(value); if (value === 'MIXED') setCash(Math.floor(total / 2)); }} key={value}>{label}</button>)}</div>{paymentMode === 'MIXED' && <div className="mixed-payment"><label className="field">Наличными<input type="number" min="0.01" max={Math.max(.01,total-.01)} step="0.01" value={cash} onChange={e => setCash(Number(e.target.value))}/></label><div><span>Kaspi Pay</span><strong>{money.format(Math.max(0,total-cash))}</strong></div></div>}</div>
