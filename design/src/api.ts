@@ -26,6 +26,7 @@ export type UserAccount = { id: number; employeeId: number | null; employeeName:
 export type BonusBalance = { employeeId: number; fullName: string; active: boolean; accrued: number; paid: number; balance: number };
 export type BonusEntry = { id: number; type: string; saleId: number | null; returnId: number | null; amount: number; reason: string; createdAt: string };
 export type StaffPayment = { id: number; type: 'BONUS' | 'SALARY'; amount: number; method: string; paidAt: string; reason: string; reversalOfId: number | null; reversed: boolean };
+export type AuditLog = { id: number; action: string; entityType: string; entityId: number; reason: string | null; username: string; createdAt: string };
 export type NewSale = {
   requestKey: string;
   sellerId: number | null;
@@ -125,5 +126,6 @@ export const api = {
   bonusEntries: (employeeId: number) => request<BonusEntry[]>(`/employees/${employeeId}/bonuses?limit=100&offset=0`),
   staffPayments: (employeeId: number) => request<StaffPayment[]>(`/employees/${employeeId}/staff-payments?limit=100&offset=0`),
   payStaff: (employeeId: number, type: 'BONUS' | 'SALARY', amount: number, method: 'CASH' | 'KASPI_PAY' | 'BANK_TRANSFER', reason: string) => mutate<{ id: number }>('/staff-payments', { requestKey: crypto.randomUUID(), employeeId, type, amount, method, reason, paidAt: null }),
+  auditLog: () => request<AuditLog[]>('/audit-log?limit=200&offset=0'),
   createSale: (sale: NewSale) => mutate<{ id: number }>('/sales', sale),
 };

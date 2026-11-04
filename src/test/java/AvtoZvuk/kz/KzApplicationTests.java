@@ -67,6 +67,7 @@ class KzApplicationTests {
     @Autowired PersonnelService personnel;
     @Autowired ReportService reports;
     @Autowired InventoryService inventory;
+    @Autowired AuditService audit;
     @Autowired PasswordEncoder passwords;
     @Autowired MockMvc mvc;
     long ownerEmployee, sellerEmployee, ownerUser, sellerUser, supplier, product;
@@ -389,6 +390,21 @@ class KzApplicationTests {
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Период");
         login(sellerName);
         assertThatThrownBy(() -> reports.summary(today, today)).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void auditHistoryIsOrderedAndOwnerOnly() {
+        long category = catalog.category(new AvtoZvuk.kz.api.dto.catalog.CategoryRequest("Audit " + UUID.randomUUID()));
+        var history = audit.history(20, 0);
+        assertThat(history).isNotEmpty();
+        assertThat(history).filteredOn(entry -> entry.entityType().equals("Category") && entry.entityId() == category)
+                .singleElement().satisfies(entry -> {
+            assertThat(entry.action()).isEqualTo("CATEGORY_CREATE");
+            assertThat(entry.username()).isEqualTo(ownerName);
+        });
+        assertThat(history.getFirst().createdAt()).isAfterOrEqualTo(history.getLast().createdAt());
+        login(sellerName);
+        assertThatThrownBy(() -> audit.history(20, 0)).isInstanceOf(BusinessException.class);
     }
 
     @Test

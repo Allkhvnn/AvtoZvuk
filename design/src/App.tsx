@@ -6,8 +6,9 @@ import { PurchasesPage } from './PurchasesPage';
 import { StockPage } from './StockPage';
 import { EmployeesPage } from './EmployeesPage';
 import { FinancePage } from './FinancePage';
+import { AuditPage } from './AuditPage';
 
-type IconName = 'grid' | 'cart' | 'box' | 'users' | 'chart' | 'settings' | 'search' | 'bell' | 'plus' | 'trend' | 'wallet' | 'receipt' | 'warehouse' | 'chevron';
+type IconName = 'grid' | 'cart' | 'box' | 'users' | 'chart' | 'settings' | 'history' | 'search' | 'bell' | 'plus' | 'trend' | 'wallet' | 'receipt' | 'warehouse' | 'chevron';
 const icons: Record<IconName, ReactNode> = {
   grid: <><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></>,
   cart: <><path d="M3 4h2l2.3 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></>,
@@ -15,6 +16,7 @@ const icons: Record<IconName, ReactNode> = {
   users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/></>,
   chart: <path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/>,
   settings: <><circle cx="12" cy="12" r="3"/><path d="M4 12a8 8 0 1 0 16 0 8 8 0 1 0-16 0"/></>,
+  history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></>,
   search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></>,
   plus: <path d="M12 5v14M5 12h14"/>,
@@ -65,7 +67,7 @@ export default function App() {
   const [stock, setStock] = useState<LowStock[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
-  const [activePage, setActivePage] = useState<'dashboard' | 'sales' | 'products' | 'purchases' | 'stock' | 'employees' | 'finance'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'sales' | 'products' | 'purchases' | 'stock' | 'employees' | 'finance' | 'audit'>('dashboard');
   const [createSaleRequest, setCreateSaleRequest] = useState(0);
 
   useEffect(() => { api.me().then(setActor).catch(() => setActor(null)).finally(() => setChecking(false)); }, []);
@@ -93,14 +95,14 @@ export default function App() {
       <div className="brand"><div className="brand-mark"><span>AZ</span></div><div><div className="brand-name">Avto<span>Zvuk</span></div><div className="brand-subtitle">учёт магазина</div></div></div>
       <nav className="nav"><p className="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</p>
         {[['Обзор','grid','dashboard'],['Продажи','cart','sales'],['Товары','box','products'],['Поступления','receipt','purchases'],['Склад','warehouse','stock'],['Сотрудники','users','employees'],['Отчёты','chart','finance']].filter(([, , page]) => !['purchases','stock','employees','finance'].includes(page) || actor.role === 'OWNER').map(([label, icon, page]) => <button onClick={() => page && setActivePage(page as typeof activePage)} className={`button nav-item ${activePage === page ? 'active' : ''}`} key={label}><Icon name={icon as IconName}/><span>{label}</span></button>)}
-        <p className="nav-caption secondary">УПРАВЛЕНИЕ</p><button className="button nav-item"><Icon name="settings"/><span>Настройки</span></button>
+        <p className="nav-caption secondary">УПРАВЛЕНИЕ</p>{actor.role === 'OWNER' && <button onClick={() => setActivePage('audit')} className={`button nav-item ${activePage === 'audit' ? 'active' : ''}`}><Icon name="history"/><span>История действий</span></button>}<button className="button nav-item"><Icon name="settings"/><span>Настройки</span></button>
       </nav>
       <div className="sidebar-card"><div className="pulse-dot"/><div><strong>Система работает</strong><span>Backend подключён</span></div></div>
       <button className="profile profile-button" onClick={async () => { await logout(); setActor(null); }} title="Выйти"><div className="avatar">{actor.username.slice(0,2).toUpperCase()}</div><div><strong>{actor.username}</strong><span>{actor.role === 'OWNER' ? 'Владелец' : 'Продавец'}</span></div><Icon name="chevron" size={16}/></button>
     </aside>
-    <main className="main"><header className="topbar"><div className="mobile-brand">AZ</div><div className="search"><Icon name="search" size={18}/><input className="input" placeholder={activePage === 'products' || activePage === 'stock' ? 'Поиск по товарам или артикулу…' : activePage === 'purchases' ? 'Поиск по поставщику или документу…' : activePage === 'employees' ? 'Поиск по сотруднику или логину…' : 'Поиск по продажам…'} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="header-actions"><button className="button icon-button" aria-label="Уведомления"><Icon name="bell"/></button><button className="button primary" onClick={() => { setActivePage('sales'); setCreateSaleRequest(value => value + 1); }}><Icon name="plus" size={18}/>Новая продажа</button></div></header>
+    <main className="main"><header className="topbar"><div className="mobile-brand">AZ</div><div className="search"><Icon name="search" size={18}/><input className="input" placeholder={activePage === 'products' || activePage === 'stock' ? 'Поиск по товарам или артикулу…' : activePage === 'purchases' ? 'Поиск по поставщику или документу…' : activePage === 'employees' ? 'Поиск по сотруднику или логину…' : activePage === 'audit' ? 'Поиск по действию, пользователю или объекту…' : 'Поиск по продажам…'} value={query} onChange={e => setQuery(e.target.value)}/></div><div className="header-actions"><button className="button icon-button" aria-label="Уведомления"><Icon name="bell"/></button><button className="button primary" onClick={() => { setActivePage('sales'); setCreateSaleRequest(value => value + 1); }}><Icon name="plus" size={18}/>Новая продажа</button></div></header>
       <div className="content">{error && <div className="page-error">Не удалось загрузить данные: {error}</div>}
-        {activePage === 'sales' ? <SalesPage actor={actor} sales={sales} query={query} createRequest={createSaleRequest} onCreated={async () => { setSales(await api.sales(50)); }} /> : activePage === 'products' ? <ProductsPage actor={actor} query={query} /> : activePage === 'purchases' ? <PurchasesPage query={query} /> : activePage === 'stock' ? <StockPage query={query} /> : activePage === 'employees' ? <EmployeesPage query={query} /> : activePage === 'finance' ? <FinancePage query={query} /> : <>
+        {activePage === 'sales' ? <SalesPage actor={actor} sales={sales} query={query} createRequest={createSaleRequest} onCreated={async () => { setSales(await api.sales(50)); }} /> : activePage === 'products' ? <ProductsPage actor={actor} query={query} /> : activePage === 'purchases' ? <PurchasesPage query={query} /> : activePage === 'stock' ? <StockPage query={query} /> : activePage === 'employees' ? <EmployeesPage query={query} /> : activePage === 'finance' ? <FinancePage query={query} /> : activePage === 'audit' ? <AuditPage query={query} /> : <>
         <section className="page-heading"><div><p className="eyebrow">{fullDate.format(new Date()).toUpperCase()}</p><h1>Добрый день, {actor.username}</h1><p>Актуальная информация по вашему магазину.</p></div><div className="period-button">Текущий месяц</div></section>
         <section className="metrics-grid">{metrics.map(m => <article className="metric-card" key={m.label}><div className={`metric-icon ${m.tone}`}><Icon name={m.icon}/></div><div className="metric-label">{m.label}</div><div className="metric-value">{m.value}</div><div className={`metric-note ${m.tone === 'green' ? 'warning' : ''}`}>{m.note}</div></article>)}</section>
         <section className="dashboard-row"><article className="panel chart-panel"><div className="panel-head"><div><h2>Финансовый результат</h2><p>Текущий месяц с учётом возвратов</p></div></div><div className="finance-summary"><div><span>Чистая выручка</span><strong>{summary ? money.format(summary.netRevenue) : '—'}</strong></div><div><span>Себестоимость</span><strong>{summary ? money.format(summary.netCost) : '—'}</strong></div><div><span>После расходов</span><strong className="accent-value">{summary ? money.format(summary.grossProfitAfterExpenses) : '—'}</strong></div></div></article>

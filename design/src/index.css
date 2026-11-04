@@ -340,6 +340,9 @@ td strong { font-weight: 700; }
 .success-banner { display: flex; justify-content: space-between; align-items: center; }
 .success-banner button { border: 0; color: inherit; background: transparent; cursor: pointer; font-size: 17px; }
 .danger-value { color: #d64536; }
+.audit-table td { vertical-align: top; }
+.audit-action { display: inline-block; padding: 5px 8px; border-radius: 7px; color: var(--accent-dark); background: var(--accent-soft); font-size: 9px; font-weight: 700; }
+.audit-reason { max-width: 320px; color: var(--muted); white-space: normal; }
 .products-panel { min-height: 440px; }
 .catalog-legend { display: flex; gap: 13px; color: var(--muted); font-size: 8px; }
 .catalog-legend span { display: flex; align-items: center; gap: 5px; }
