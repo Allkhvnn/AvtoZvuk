@@ -104,6 +104,11 @@ class KzApplicationTests {
         long returned = returns.returnSale(command);
         assertThat(returns.returnSale(command)).isEqualTo(returned);
         assertThat(documents.returned(returned).bonus()).isEqualByComparingTo("-9.50");
+        assertThat(documents.sale(sale).items()).singleElement().satisfies(item -> {
+            assertThat(item.returnedQuantity()).isEqualTo(1);
+            assertThat(item.returnedAmount()).isEqualByComparingTo("190");
+            assertThat(item.availableQuantity()).isEqualTo(1);
+        });
         assertThat(quantity(product)).isEqualTo(2);
         assertThat(db.amount("SELECT stock_cost FROM product_stock WHERE product_id = ?", product)).isEqualByComparingTo("220");
         assertThat(db.id("SELECT count(*) FROM audit_log WHERE entity_type = 'Sale' AND entity_id = ?", sale)).isEqualTo(1);

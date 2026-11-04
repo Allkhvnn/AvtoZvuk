@@ -7,6 +7,9 @@ export type PaymentReport = { method: 'CASH' | 'KASPI_PAY'; incoming: number; re
 export type ProductReport = { productId: number; name: string; sku: string; soldQuantity: number; returnedQuantity: number; netQuantity: number; salesRevenue: number; returns: number; netRevenue: number; discounts: number; netCost: number; grossProfit: number };
 export type EmployeeReport = { employeeId: number; fullName: string; active: boolean; salesCount: number; salesRevenue: number; returnsCount: number; returns: number; netRevenue: number; bonusAccrued: number; bonusPaid: number; salaryPaid: number };
 export type Sale = { id: number; documentNumber: string; sellerId: number; status: string; soldAt: string; total: number };
+export type SaleDocument = { id: number; documentNumber: string; status: string; total: number; bonus: number; items: SaleDocumentItem[]; payments: { method: 'CASH' | 'KASPI_PAY'; amount: number }[] };
+export type SaleDocumentItem = { id: number; productId: number; productName: string; productSku: string; quantity: number; unitPrice: number; discountAmount: number; lineTotal: number; returnedQuantity: number; returnedAmount: number; availableQuantity: number };
+export type NewReturn = { requestKey: string; saleId: number; reason: string; items: { saleItemId: number; quantity: number; restock: boolean }[]; payments: { method: 'CASH' | 'KASPI_PAY'; amount: number }[] };
 export type LowStock = { productId: number; name: string; sku: string; quantity: number; lowStockThreshold: number };
 export type Product = { id: number; categoryId: number | null; name: string; sku: string; barcode: string | null; sellingPrice: number; lowStockThreshold: number; quantity: number; active: boolean; lowStock: boolean };
 export type Category = { id: number; name: string };
@@ -82,6 +85,8 @@ export async function logout() {
 export const api = {
   me: () => request<Actor>('/me'),
   sales: (limit = 6) => request<Sale[]>(`/sales?limit=${limit}&offset=0`),
+  sale: (id: number) => request<SaleDocument>(`/sales/${id}`),
+  createReturn: (returned: NewReturn) => mutate<{ id: number }>('/returns', returned),
   summary: (from: string, to: string) => request<Summary>(`/reports/summary?from=${from}&to=${to}`),
   paymentReport: (from: string, to: string) => request<PaymentReport[]>(`/reports/payment-methods?from=${from}&to=${to}`),
   productReport: (from: string, to: string) => request<ProductReport[]>(`/reports/products?from=${from}&to=${to}`),

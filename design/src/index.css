@@ -47,10 +47,31 @@
 .report-facts span { color: var(--muted); font-size: 8px; }
 .report-facts strong { font-size: 11px; }
 .expense-modal { width: min(650px,100%); }
+.return-modal { width: min(960px,100%); }
+.return-items { display: grid; gap: 8px; }
+.return-item { display: grid; grid-template-columns: minmax(180px,1fr) repeat(3,110px); align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.return-item > div { display: grid; gap: 4px; }
+.return-item strong { font-size: 9px; }
+.return-item span { color: var(--muted); font-size: 8px; }
+.sale-payments { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sale-payments > span { padding: 8px 10px; border-radius: 8px; color: var(--muted); background: var(--surface-muted); font-size: 8px; }
+.return-editor { display: grid; gap: 8px; }
+.return-edit-row { display: grid; grid-template-columns: minmax(180px,1fr) 110px 145px; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.return-edit-row > div:first-child { display: grid; gap: 4px; }
+.return-edit-row strong { font-size: 9px; }
+.return-edit-row span { color: var(--muted); font-size: 8px; }
+.return-edit-row label:not(.restock-check) { display: grid; gap: 5px; color: var(--muted); font-size: 8px; font-weight: 700; }
+.return-edit-row input[type="number"] { width: 100%; height: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); font-size: 9px; }
+.restock-check { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.restock-check input { accent-color: var(--accent); }
+.return-reason { margin-top: 13px; }
+.return-reason textarea { min-height: 68px; resize: vertical; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-muted); font-size: 9px; }
+.return-complete { margin: 18px 26px 24px; padding: 14px; border-radius: 10px; color: #496358; background: var(--green-soft); font-size: 9px; text-align: center; }
 
 @media (max-width: 600px) {
   .report-toolbar { align-items: stretch; flex-direction: column; }
   .finance-metrics, .finance-grid, .report-facts { grid-template-columns: 1fr; }
+  .return-item, .return-edit-row { grid-template-columns: 1fr; }
 }
 
 @layer base {

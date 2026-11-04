@@ -12,7 +12,8 @@ import java.util.List;
 public class DocumentRepository {
     private final Database db;
     record Header(long id,String documentNumber,String status,Long sellerId) {}
-    record SaleItemRow(long id,long productId,String productName,String productSku,int quantity,BigDecimal unitPrice,BigDecimal discountAmount,BigDecimal lineTotal) {}
+    record SaleItemRow(long id,long productId,String productName,String productSku,int quantity,BigDecimal unitPrice,
+                       BigDecimal discountAmount,BigDecimal lineTotal,int returnedQuantity,BigDecimal returnedAmount) {}
     record PurchaseItemRow(long id,long productId,int quantity,BigDecimal unitCost,BigDecimal lineTotal) {}
     record ReturnItemRow(long id,long saleItemId,int quantity,BigDecimal refundAmount,boolean restock) {}
     record PaymentRow(String method,BigDecimal amount) {}
@@ -24,7 +25,19 @@ public class DocumentRepository {
     Header returnHeader(long id){return basicHeader("sale_returns",id);}
     private Header basicHeader(String table,long id){return db.query("SELECT id,document_number,status FROM "+table+" WHERE id=?",(r,n)->new Header(r.getLong("id"),r.getString("document_number"),r.getString("status"),null),id).stream().findFirst().orElseThrow(()->BusinessException.missing("Запись не найдена"));}
 
-    List<SaleItemRow> saleItems(long id){return db.query("SELECT id,product_id,product_name,product_sku,quantity,unit_price,discount_amount,line_total FROM sale_items WHERE sale_id=? ORDER BY id",(r,n)->new SaleItemRow(r.getLong("id"),r.getLong("product_id"),r.getString("product_name"),r.getString("product_sku"),r.getInt("quantity"),r.getBigDecimal("unit_price"),r.getBigDecimal("discount_amount"),r.getBigDecimal("line_total")),id);}
+    List<SaleItemRow> saleItems(long id){return db.query("""
+            SELECT i.id,i.product_id,i.product_name,i.product_sku,i.quantity,i.unit_price,
+                i.discount_amount,i.line_total,COALESCE(x.returned_quantity,0) returned_quantity,
+                COALESCE(x.returned_amount,0)::numeric(19,2) returned_amount
+            FROM sale_items i LEFT JOIN (
+                SELECT ri.sale_item_id,sum(ri.quantity) returned_quantity,sum(ri.refund_amount) returned_amount
+                FROM return_items ri JOIN sale_returns r ON r.id=ri.return_id
+                WHERE r.status='POSTED' GROUP BY ri.sale_item_id
+            ) x ON x.sale_item_id=i.id WHERE i.sale_id=? ORDER BY i.id
+            """,(r,n)->new SaleItemRow(r.getLong("id"),r.getLong("product_id"),r.getString("product_name"),
+            r.getString("product_sku"),r.getInt("quantity"),r.getBigDecimal("unit_price"),
+            r.getBigDecimal("discount_amount"),r.getBigDecimal("line_total"),r.getInt("returned_quantity"),
+            r.getBigDecimal("returned_amount")),id);}
     List<PurchaseItemRow> purchaseItems(long id){return db.query("SELECT id,product_id,quantity,unit_cost,line_total FROM purchase_items WHERE purchase_id=? ORDER BY id",(r,n)->new PurchaseItemRow(r.getLong("id"),r.getLong("product_id"),r.getInt("quantity"),r.getBigDecimal("unit_cost"),r.getBigDecimal("line_total")),id);}
     List<ReturnItemRow> returnItems(long id){return db.query("SELECT id,sale_item_id,quantity,refund_amount,restock FROM return_items WHERE return_id=? ORDER BY id",(r,n)->new ReturnItemRow(r.getLong("id"),r.getLong("sale_item_id"),r.getInt("quantity"),r.getBigDecimal("refund_amount"),r.getBoolean("restock")),id);}
     List<PaymentRow> salePayments(long id){return payments("sale_id",id);}
