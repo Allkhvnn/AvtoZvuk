@@ -488,6 +488,10 @@ td strong { font-weight: 700; }
 .history-entry > div { display: grid; gap: 4px; }
 .history-entry strong { font-size: 9px; }
 .history-entry span { color: var(--muted); font-size: 8px; }
+.payment-history-action { display: flex; align-items: center; gap: 8px; }
+.payment-history-action button { padding: 5px 7px; border: 1px solid #f0c9c5; border-radius: 6px; color: #b42318; background: #fff7f6; cursor: pointer; font-size: 7px; font-weight: 700; }
+.payment-history-action button:disabled { cursor: not-allowed; opacity: .45; }
+.reversed-entry { opacity: .65; }
 .settings-heading { margin-bottom: 18px; }
 .settings-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; gap: 16px; }
 .settings-card { overflow: hidden; padding: 0; }

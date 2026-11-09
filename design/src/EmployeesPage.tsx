@@ -1,38 +1,866 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { api, type BonusBalance, type BonusEntry, type Employee, type StaffPayment, type UserAccount } from './api';
+import { useEffect, useMemo, useState, type FormEvent } from "react"
+import {
+  api,
+  type BonusBalance,
+  type BonusEntry,
+  type Employee,
+  type StaffPayment,
+  type UserAccount,
+} from "./api"
 
-const money = new Intl.NumberFormat('ru-KZ',{style:'currency',currency:'KZT',maximumFractionDigits:2});
-const dateTime = new Intl.DateTimeFormat('ru-KZ',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+const money = new Intl.NumberFormat("ru-KZ", {
+  style: "currency",
+  currency: "KZT",
+  maximumFractionDigits: 2,
+})
+const dateTime = new Intl.DateTimeFormat("ru-KZ", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+})
 
-export function EmployeesPage({query}:{query:string}){
-  const [employees,setEmployees]=useState<Employee[]>([]);const [users,setUsers]=useState<UserAccount[]>([]);const [balances,setBalances]=useState<BonusBalance[]>([]);
-  const [employeeModal,setEmployeeModal]=useState<Employee|null|undefined>(undefined);const [name,setName]=useState('');const [phone,setPhone]=useState('');const [rate,setRate]=useState(5);
-  const [accountEmployee,setAccountEmployee]=useState<Employee|null>(null);const [username,setUsername]=useState('');const [password,setPassword]=useState('');const [role,setRole]=useState<'OWNER'|'SELLER'>('SELLER');
-  const [payEmployee,setPayEmployee]=useState<Employee|null>(null);const [payType,setPayType]=useState<'BONUS'|'SALARY'>('BONUS');const [amount,setAmount]=useState(0);const [method,setMethod]=useState<'CASH'|'KASPI_PAY'|'BANK_TRANSFER'>('CASH');const [reason,setReason]=useState('');
-  const [detailEmployee,setDetailEmployee]=useState<Employee|null>(null);const [entries,setEntries]=useState<BonusEntry[]>([]);const [payments,setPayments]=useState<StaffPayment[]>([]);
-  const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [notice,setNotice]=useState('');
-  async function load(){try{const [staff,accounts,bonus]=await Promise.all([api.employees(),api.users(),api.bonusBalances()]);setEmployees(staff);setUsers(accounts);setBalances(bonus);}catch(e){setError(e instanceof Error?e.message:'Не удалось загрузить сотрудников');}}
-  useEffect(()=>{void load();},[]);
-  const balanceByEmployee=useMemo(()=>new Map(balances.map(item=>[item.employeeId,item])),[balances]);const userByEmployee=useMemo(()=>new Map(users.filter(u=>u.employeeId!==null).map(u=>[u.employeeId!,u])),[users]);
-  const filtered=employees.filter(e=>`${e.fullName} ${e.phone??''} ${userByEmployee.get(e.id)?.username??''}`.toLowerCase().includes(query.toLowerCase()));
-  function create(){setEmployeeModal(null);setName('');setPhone('');setRate(5);setError('');}function edit(e:Employee){setEmployeeModal(e);setName(e.fullName);setPhone(e.phone??'');setRate(Number(e.bonusRate)*100);setError('');}
-  async function saveEmployee(event:FormEvent){event.preventDefault();setBusy(true);setError('');try{if(employeeModal)await api.updateEmployee(employeeModal.id,name,phone||null,rate/100);else await api.createEmployee(name,phone||null,rate/100);setNotice(employeeModal?'Данные сотрудника обновлены':'Сотрудник добавлен');setEmployeeModal(undefined);await load();}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить сотрудника');}finally{setBusy(false);}}
-  async function toggleEmployee(e:Employee){const why=window.prompt(`${e.active?'Отключить':'Активировать'} сотрудника «${e.fullName}». Укажите причину:`);if(!why)return;try{await api.employeeStatus(e.id,!e.active,why);setNotice(e.active?'Сотрудник и его доступ отключены':'Сотрудник активирован');await load();}catch(err){setError(err instanceof Error?err.message:'Операция не выполнена');}}
-  function account(e:Employee){setAccountEmployee(e);setUsername('');setPassword('');setRole('SELLER');setError('');}
-  async function saveAccount(event:FormEvent){event.preventDefault();if(!accountEmployee)return;setBusy(true);setError('');try{await api.createUser(accountEmployee.id,username,password,role);setNotice('Учётная запись создана');setAccountEmployee(null);await load();}catch(e){setError(e instanceof Error?e.message:'Не удалось создать учётную запись');}finally{setBusy(false);}}
-  async function toggleUser(user:UserAccount){const why=window.prompt(`${user.active?'Отключить':'Активировать'} доступ ${user.username}. Укажите причину:`);if(!why)return;try{await api.userStatus(user.id,!user.active,why);setNotice(user.active?'Доступ отключён':'Доступ активирован');await load();}catch(e){setError(e instanceof Error?e.message:'Операция не выполнена');}}
-  function startPay(e:Employee,type:'BONUS'|'SALARY'){setPayEmployee(e);setPayType(type);setAmount(type==='BONUS'?Number(balanceByEmployee.get(e.id)?.balance??0):0);setMethod('CASH');setReason(type==='BONUS'?'Выплата накопленного бонуса':'Выплата заработной платы');setError('');}
-  async function savePayment(event:FormEvent){event.preventDefault();if(!payEmployee)return;setBusy(true);setError('');try{const result=await api.payStaff(payEmployee.id,payType,amount,method,reason);setNotice(`Выплата №${result.id} зарегистрирована`);setPayEmployee(null);await load();}catch(e){setError(e instanceof Error?e.message:'Не удалось зарегистрировать выплату');}finally{setBusy(false);}}
-  async function showDetail(e:Employee){setDetailEmployee(e);try{const [bonus,pays]=await Promise.all([api.bonusEntries(e.id),api.staffPayments(e.id)]);setEntries(bonus);setPayments(pays);}catch(err){setError(err instanceof Error?err.message:'Не удалось загрузить историю');}}
-  return <>
-    <section className="sales-heading"><div><p className="eyebrow">КОМАНДА И ВЫПЛАТЫ</p><h1>Сотрудники</h1><p>Доступ, бонусные ставки, начисления и фактические выплаты.</p></div><button className="button primary" onClick={create}><span className="button-plus">+</span>Добавить сотрудника</button></section>
-    {notice&&<div className="success-banner">{notice}<button onClick={()=>setNotice('')}>×</button></div>}{error&&employeeModal===undefined&&!accountEmployee&&!payEmployee&&<div className="page-error">{error}</div>}
-    <section className="sales-kpis"><div><span>Активных сотрудников</span><strong>{employees.filter(e=>e.active).length}</strong></div><div><span>Учётных записей</span><strong>{users.filter(u=>u.active).length}</strong></div><div><span>Бонусы к выплате</span><strong>{money.format(balances.reduce((sum,b)=>sum+Number(b.balance),0))}</strong></div></section>
-    <section className="panel employees-panel"><div className="panel-head"><div><h2>Команда магазина</h2><p>{query?`Найдено: ${filtered.length}`:`${employees.length} сотрудников`}</p></div></div><div className="employee-grid">{filtered.map(e=>{const balance=balanceByEmployee.get(e.id);const user=userByEmployee.get(e.id);return <article className={`employee-card ${!e.active?'disabled-card':''}`} key={e.id}><div className="employee-card-head"><div className="employee-avatar">{e.fullName.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase()}</div><div><strong>{e.fullName}</strong><span>{e.phone||'Телефон не указан'}</span></div><span className={`product-state ${e.active?'active':'disabled'}`}>{e.active?'Активен':'Отключён'}</span></div><div className="employee-account"><span>Учётная запись</span>{user?<div><strong>{user.username}</strong><button onClick={()=>toggleUser(user)}>{user.active?'отключить':'включить'}</button></div>:<button onClick={()=>account(e)} disabled={!e.active}>+ создать доступ</button>}</div><div className="employee-stats"><div><span>Ставка бонуса</span><strong>{(Number(e.bonusRate)*100).toFixed(1)}%</strong></div><div><span>Начислено</span><strong>{money.format(balance?.accrued??0)}</strong></div><div><span>К выплате</span><strong className={Number(balance?.balance??0)>0?'positive-text':''}>{money.format(balance?.balance??0)}</strong></div></div><div className="employee-actions"><button onClick={()=>edit(e)}>Редактировать</button><button onClick={()=>showDetail(e)}>История</button><button onClick={()=>startPay(e,'BONUS')} disabled={Number(balance?.balance??0)<=0}>Бонус</button><button onClick={()=>startPay(e,'SALARY')}>Зарплата</button><button className="danger-link" onClick={()=>toggleEmployee(e)}>{e.active?'Отключить':'Активировать'}</button></div></article>})}{!filtered.length&&<div className="empty-state">Сотрудники не найдены</div>}</div></section>
+export function EmployeesPage({ query }: { query: string }) {
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [users, setUsers] = useState<UserAccount[]>([])
+  const [balances, setBalances] = useState<BonusBalance[]>([])
+  const [employeeModal, setEmployeeModal] =
+    useState<Employee | null | undefined>(undefined)
+  const [name, setName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [rate, setRate] = useState(5)
+  const [accountEmployee, setAccountEmployee] = useState<Employee | null>(null)
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [role, setRole] = useState<"OWNER" | "SELLER">("SELLER")
+  const [payEmployee, setPayEmployee] = useState<Employee | null>(null)
+  const [payType, setPayType] = useState<"BONUS" | "SALARY">("BONUS")
+  const [amount, setAmount] = useState(0)
+  const [method, setMethod] = useState<"CASH" | "KASPI_PAY" | "BANK_TRANSFER">(
+    "CASH",
+  )
+  const [reason, setReason] = useState("")
+  const [adjustEmployee, setAdjustEmployee] = useState<Employee | null>(null)
+  const [adjustAmount, setAdjustAmount] = useState(0)
+  const [adjustReason, setAdjustReason] = useState("")
+  const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null)
+  const [entries, setEntries] = useState<BonusEntry[]>([])
+  const [payments, setPayments] = useState<StaffPayment[]>([])
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
+  async function load() {
+    try {
+      const [staff, accounts, bonus] = await Promise.all([
+        api.employees(),
+        api.users(),
+        api.bonusBalances(),
+      ])
+      setEmployees(staff)
+      setUsers(accounts)
+      setBalances(bonus)
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Не удалось загрузить сотрудников",
+      )
+    }
+  }
+  useEffect(() => {
+    void load()
+  }, [])
+  const balanceByEmployee = useMemo(
+    () => new Map(balances.map((item) => [item.employeeId, item])),
+    [balances],
+  )
+  const userByEmployee = useMemo(
+    () =>
+      new Map(
+        users
+          .filter((u) => u.employeeId !== null)
+          .map((u) => [u.employeeId!, u]),
+      ),
+    [users],
+  )
+  const filtered = employees.filter((e) =>
+    `${e.fullName} ${e.phone ?? ""} ${userByEmployee.get(e.id)?.username ?? ""}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  )
+  function create() {
+    setEmployeeModal(null)
+    setName("")
+    setPhone("")
+    setRate(5)
+    setError("")
+  }
+  function edit(e: Employee) {
+    setEmployeeModal(e)
+    setName(e.fullName)
+    setPhone(e.phone ?? "")
+    setRate(Number(e.bonusRate) * 100)
+    setError("")
+  }
+  async function saveEmployee(event: FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    setError("")
+    try {
+      if (employeeModal)
+        await api.updateEmployee(
+          employeeModal.id,
+          name,
+          phone || null,
+          rate / 100,
+        )
+      else await api.createEmployee(name, phone || null, rate / 100)
+      setNotice(
+        employeeModal ? "Данные сотрудника обновлены" : "Сотрудник добавлен",
+      )
+      setEmployeeModal(undefined)
+      await load()
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Не удалось сохранить сотрудника",
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function toggleEmployee(e: Employee) {
+    const why = window.prompt(
+      `${
+        e.active ? "Отключить" : "Активировать"
+      } сотрудника «${e.fullName}». Укажите причину:`,
+    )
+    if (!why) return
+    try {
+      await api.employeeStatus(e.id, !e.active, why)
+      setNotice(
+        e.active ? "Сотрудник и его доступ отключены" : "Сотрудник активирован",
+      )
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Операция не выполнена")
+    }
+  }
+  function account(e: Employee) {
+    setAccountEmployee(e)
+    setUsername("")
+    setPassword("")
+    setRole("SELLER")
+    setError("")
+  }
+  async function saveAccount(event: FormEvent) {
+    event.preventDefault()
+    if (!accountEmployee) return
+    setBusy(true)
+    setError("")
+    try {
+      await api.createUser(accountEmployee.id, username, password, role)
+      setNotice("Учётная запись создана")
+      setAccountEmployee(null)
+      await load()
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Не удалось создать учётную запись",
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function toggleUser(user: UserAccount) {
+    const why = window.prompt(
+      `${
+        user.active ? "Отключить" : "Активировать"
+      } доступ ${user.username}. Укажите причину:`,
+    )
+    if (!why) return
+    try {
+      await api.userStatus(user.id, !user.active, why)
+      setNotice(user.active ? "Доступ отключён" : "Доступ активирован")
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Операция не выполнена")
+    }
+  }
+  function startPay(e: Employee, type: "BONUS" | "SALARY") {
+    setPayEmployee(e)
+    setPayType(type)
+    setAmount(
+      type === "BONUS" ? Number(balanceByEmployee.get(e.id)?.balance ?? 0) : 0,
+    )
+    setMethod("CASH")
+    setReason(
+      type === "BONUS"
+        ? "Выплата накопленного бонуса"
+        : "Выплата заработной платы",
+    )
+    setError("")
+  }
+  async function savePayment(event: FormEvent) {
+    event.preventDefault()
+    if (!payEmployee) return
+    setBusy(true)
+    setError("")
+    try {
+      const result = await api.payStaff(
+        payEmployee.id,
+        payType,
+        amount,
+        method,
+        reason,
+      )
+      setNotice(`Выплата №${result.id} зарегистрирована`)
+      setPayEmployee(null)
+      await load()
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Не удалось зарегистрировать выплату",
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+  function startAdjustment(e: Employee) {
+    setAdjustEmployee(e)
+    setAdjustAmount(0)
+    setAdjustReason("")
+    setError("")
+  }
+  async function saveAdjustment(event: FormEvent) {
+    event.preventDefault()
+    if (!adjustEmployee || adjustAmount === 0) return
+    setBusy(true)
+    setError("")
+    try {
+      const result = await api.adjustBonus(
+        adjustEmployee.id,
+        adjustAmount,
+        adjustReason,
+      )
+      setNotice(`Корректировка бонуса №${result.id} зарегистрирована`)
+      setAdjustEmployee(null)
+      await load()
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Не удалось скорректировать бонус",
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function showDetail(e: Employee) {
+    setDetailEmployee(e)
+    try {
+      const [bonus, pays] = await Promise.all([
+        api.bonusEntries(e.id),
+        api.staffPayments(e.id),
+      ])
+      setEntries(bonus)
+      setPayments(pays)
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Не удалось загрузить историю",
+      )
+    }
+  }
+  async function reversePayment(item: StaffPayment) {
+    if (!detailEmployee) return
+    const why = window.prompt(
+      `Отменить выплату №${item.id} на ${money.format(item.amount)}. Укажите причину:`,
+    )
+    if (!why) return
+    setBusy(true)
+    setError("")
+    try {
+      const result = await api.reverseStaffPayment(item.id, why)
+      setNotice(`Выплата отменена записью №${result.id}`)
+      const [bonus, pays] = await Promise.all([
+        api.bonusEntries(detailEmployee.id),
+        api.staffPayments(detailEmployee.id),
+      ])
+      setEntries(bonus)
+      setPayments(pays)
+      await load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось отменить выплату")
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <>
+      <section className="sales-heading">
+        <div>
+          <p className="eyebrow">КОМАНДА И ВЫПЛАТЫ</p>
+          <h1>Сотрудники</h1>
+          <p>Доступ, бонусные ставки, начисления и фактические выплаты.</p>
+        </div>
+        <button className="button primary" onClick={create}>
+          <span className="button-plus">+</span>Добавить сотрудника
+        </button>
+      </section>
+      {notice && (
+        <div className="success-banner">
+          {notice}
+          <button onClick={() => setNotice("")}>×</button>
+        </div>
+      )}
+      {error &&
+        employeeModal === undefined &&
+        !accountEmployee &&
+        !payEmployee &&
+        !adjustEmployee && <div className="page-error">{error}</div>}
+      <section className="sales-kpis">
+        <div>
+          <span>Активных сотрудников</span>
+          <strong>{employees.filter((e) => e.active).length}</strong>
+        </div>
+        <div>
+          <span>Учётных записей</span>
+          <strong>{users.filter((u) => u.active).length}</strong>
+        </div>
+        <div>
+          <span>Бонусы к выплате</span>
+          <strong>
+            {money.format(
+              balances.reduce((sum, b) => sum + Number(b.balance), 0),
+            )}
+          </strong>
+        </div>
+      </section>
+      <section className="panel employees-panel">
+        <div className="panel-head">
+          <div>
+            <h2>Команда магазина</h2>
+            <p>
+              {query
+                ? `Найдено: ${filtered.length}`
+                : `${employees.length} сотрудников`}
+            </p>
+          </div>
+        </div>
+        <div className="employee-grid">
+          {filtered.map((e) => {
+            const balance = balanceByEmployee.get(e.id)
+            const user = userByEmployee.get(e.id)
+            return (
+              <article
+                className={`employee-card ${!e.active ? "disabled-card" : ""}`}
+                key={e.id}
+              >
+                <div className="employee-card-head">
+                  <div className="employee-avatar">
+                    {e.fullName
+                      .split(" ")
+                      .map((x) => x[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </div>
+                  <div>
+                    <strong>{e.fullName}</strong>
+                    <span>{e.phone || "Телефон не указан"}</span>
+                  </div>
+                  <span
+                    className={`product-state ${
+                      e.active ? "active" : "disabled"
+                    }`}
+                  >
+                    {e.active ? "Активен" : "Отключён"}
+                  </span>
+                </div>
+                <div className="employee-account">
+                  <span>Учётная запись</span>
+                  {user ? (
+                    <div>
+                      <strong>{user.username}</strong>
+                      <button onClick={() => toggleUser(user)}>
+                        {user.active ? "отключить" : "включить"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => account(e)} disabled={!e.active}>
+                      + создать доступ
+                    </button>
+                  )}
+                </div>
+                <div className="employee-stats">
+                  <div>
+                    <span>Ставка бонуса</span>
+                    <strong>{(Number(e.bonusRate) * 100).toFixed(1)}%</strong>
+                  </div>
+                  <div>
+                    <span>Начислено</span>
+                    <strong>{money.format(balance?.accrued ?? 0)}</strong>
+                  </div>
+                  <div>
+                    <span>К выплате</span>
+                    <strong
+                      className={
+                        Number(balance?.balance ?? 0) > 0 ? "positive-text" : ""
+                      }
+                    >
+                      {money.format(balance?.balance ?? 0)}
+                    </strong>
+                  </div>
+                </div>
+                <div className="employee-actions">
+                  <button onClick={() => edit(e)}>Редактировать</button>
+                  <button onClick={() => showDetail(e)}>История</button>
+                  <button onClick={() => startAdjustment(e)}>
+                    Корректировка
+                  </button>
+                  <button
+                    onClick={() => startPay(e, "BONUS")}
+                    disabled={Number(balance?.balance ?? 0) <= 0}
+                  >
+                    Бонус
+                  </button>
+                  <button onClick={() => startPay(e, "SALARY")}>
+                    Зарплата
+                  </button>
+                  <button
+                    className="danger-link"
+                    onClick={() => toggleEmployee(e)}
+                  >
+                    {e.active ? "Отключить" : "Активировать"}
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+          {!filtered.length && (
+            <div className="empty-state">Сотрудники не найдены</div>
+          )}
+        </div>
+      </section>
 
-    {employeeModal!==undefined&&<div className="modal-backdrop" onMouseDown={()=>!busy&&setEmployeeModal(undefined)}><form className="product-modal employee-modal" onSubmit={saveEmployee} onMouseDown={e=>e.stopPropagation()}><div className="sale-modal-head"><div><p className="eyebrow">{employeeModal?'РЕДАКТИРОВАНИЕ':'НОВЫЙ СОТРУДНИК'}</p><h2>{employeeModal?'Карточка сотрудника':'Добавить сотрудника'}</h2><p>Бонусная ставка применяется только к будущим продажам.</p></div><button type="button" className="button modal-close" onClick={()=>setEmployeeModal(undefined)}>×</button></div>{error&&<div className="form-error product-form-error">{error}</div>}<div className="product-form-grid"><label className="field wide">ФИО<input value={name} onChange={e=>setName(e.target.value)} maxLength={200} required autoFocus/></label><label className="field">Телефон<input value={phone} onChange={e=>setPhone(e.target.value)} maxLength={40}/></label><label className="field">Бонус от продажи, %<input type="number" min="0" max="100" step="0.01" value={rate} onChange={e=>setRate(Number(e.target.value))} required/></label></div><div className="sale-footer"><button type="button" className="button cancel-button" onClick={()=>setEmployeeModal(undefined)}>Отмена</button><button className="button primary" disabled={busy}>{busy?'Сохраняем…':'Сохранить'}</button></div></form></div>}
-    {accountEmployee&&<div className="modal-backdrop" onMouseDown={()=>!busy&&setAccountEmployee(null)}><form className="product-modal employee-modal" onSubmit={saveAccount} onMouseDown={e=>e.stopPropagation()}><div className="sale-modal-head"><div><p className="eyebrow">ДОСТУП В СИСТЕМУ</p><h2>Учётная запись</h2><p>{accountEmployee.fullName}</p></div><button type="button" className="button modal-close" onClick={()=>setAccountEmployee(null)}>×</button></div>{error&&<div className="form-error product-form-error">{error}</div>}<div className="product-form-grid"><label className="field">Логин<input value={username} onChange={e=>setUsername(e.target.value)} pattern="[a-zA-Z0-9._-]{3,100}" required autoFocus/></label><label className="field">Роль<select value={role} onChange={e=>setRole(e.target.value as 'OWNER'|'SELLER')}><option value="SELLER">Продавец</option><option value="OWNER">Владелец</option></select></label><label className="field wide">Пароль (минимум 12 символов)<input type="password" value={password} onChange={e=>setPassword(e.target.value)} minLength={12} maxLength={72} required/></label></div><div className="sale-footer"><button type="button" className="button cancel-button" onClick={()=>setAccountEmployee(null)}>Отмена</button><button className="button primary" disabled={busy}>Создать доступ</button></div></form></div>}
-    {payEmployee&&<div className="modal-backdrop" onMouseDown={()=>!busy&&setPayEmployee(null)}><form className="product-modal employee-modal" onSubmit={savePayment} onMouseDown={e=>e.stopPropagation()}><div className="sale-modal-head"><div><p className="eyebrow">ФАКТИЧЕСКАЯ ВЫПЛАТА</p><h2>{payType==='BONUS'?'Выплатить бонус':'Выплатить зарплату'}</h2><p>{payEmployee.fullName}</p></div><button type="button" className="button modal-close" onClick={()=>setPayEmployee(null)}>×</button></div>{error&&<div className="form-error product-form-error">{error}</div>}<div className="product-form-grid"><label className="field">Сумма, ₸<input type="number" min="0.01" max={payType==='BONUS'?Number(balanceByEmployee.get(payEmployee.id)?.balance??0):undefined} step="0.01" value={amount} onChange={e=>setAmount(Number(e.target.value))} required autoFocus/></label><label className="field">Способ выплаты<select value={method} onChange={e=>setMethod(e.target.value as typeof method)}><option value="CASH">Наличные</option><option value="KASPI_PAY">Kaspi Pay</option><option value="BANK_TRANSFER">Банковский перевод</option></select></label><label className="field wide">Причина<input value={reason} onChange={e=>setReason(e.target.value)} maxLength={2000} required/></label></div><div className="sale-footer"><button type="button" className="button cancel-button" onClick={()=>setPayEmployee(null)}>Отмена</button><button className="button primary" disabled={busy||amount<=0}>Зарегистрировать выплату</button></div></form></div>}
-    {detailEmployee&&<div className="modal-backdrop sale-backdrop" onMouseDown={()=>setDetailEmployee(null)}><div className="employee-history" onMouseDown={e=>e.stopPropagation()}><div className="sale-modal-head"><div><p className="eyebrow">ФИНАНСОВАЯ ИСТОРИЯ</p><h2>{detailEmployee.fullName}</h2><p>Начисления бонусов и реальные выплаты</p></div><button className="button modal-close" onClick={()=>setDetailEmployee(null)}>×</button></div><div className="history-columns"><section><h3>Начисления</h3>{entries.map(item=><div className="history-entry" key={item.id}><div><strong>{item.type==='SALE'?'Бонус за продажу':item.type==='RETURN'?'Корректировка возврата':'Ручная корректировка'}</strong><span>{item.reason} · {dateTime.format(new Date(item.createdAt))}</span></div><strong className={item.amount>=0?'positive-text':'negative-text'}>{item.amount>0?'+':''}{money.format(item.amount)}</strong></div>)}{!entries.length&&<div className="empty-state">Начислений нет</div>}</section><section><h3>Выплаты</h3>{payments.map(item=><div className="history-entry" key={item.id}><div><strong>{item.type==='BONUS'?'Бонус':'Зарплата'}</strong><span>{item.reason} · {dateTime.format(new Date(item.paidAt))}</span></div><strong>{money.format(item.amount)}</strong></div>)}{!payments.length&&<div className="empty-state">Выплат нет</div>}</section></div></div></div>}
-  </>;
+      {employeeModal !== undefined && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={() => !busy && setEmployeeModal(undefined)}
+        >
+          <form
+            className="product-modal employee-modal"
+            onSubmit={saveEmployee}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="sale-modal-head">
+              <div>
+                <p className="eyebrow">
+                  {employeeModal ? "РЕДАКТИРОВАНИЕ" : "НОВЫЙ СОТРУДНИК"}
+                </p>
+                <h2>
+                  {employeeModal
+                    ? "Карточка сотрудника"
+                    : "Добавить сотрудника"}
+                </h2>
+                <p>Бонусная ставка применяется только к будущим продажам.</p>
+              </div>
+              <button
+                type="button"
+                className="button modal-close"
+                onClick={() => setEmployeeModal(undefined)}
+              >
+                ×
+              </button>
+            </div>
+            {error && (
+              <div className="form-error product-form-error">{error}</div>
+            )}
+            <div className="product-form-grid">
+              <label className="field wide">
+                ФИО
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={200}
+                  required
+                  autoFocus
+                />
+              </label>
+              <label className="field">
+                Телефон
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  maxLength={40}
+                />
+              </label>
+              <label className="field">
+                Бонус от продажи, %
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={rate}
+                  onChange={(e) => setRate(Number(e.target.value))}
+                  required
+                />
+              </label>
+            </div>
+            <div className="sale-footer">
+              <button
+                type="button"
+                className="button cancel-button"
+                onClick={() => setEmployeeModal(undefined)}
+              >
+                Отмена
+              </button>
+              <button className="button primary" disabled={busy}>
+                {busy ? "Сохраняем…" : "Сохранить"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {accountEmployee && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={() => !busy && setAccountEmployee(null)}
+        >
+          <form
+            className="product-modal employee-modal"
+            onSubmit={saveAccount}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="sale-modal-head">
+              <div>
+                <p className="eyebrow">ДОСТУП В СИСТЕМУ</p>
+                <h2>Учётная запись</h2>
+                <p>{accountEmployee.fullName}</p>
+              </div>
+              <button
+                type="button"
+                className="button modal-close"
+                onClick={() => setAccountEmployee(null)}
+              >
+                ×
+              </button>
+            </div>
+            {error && (
+              <div className="form-error product-form-error">{error}</div>
+            )}
+            <div className="product-form-grid">
+              <label className="field">
+                Логин
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  pattern="[a-zA-Z0-9._-]{3,100}"
+                  required
+                  autoFocus
+                />
+              </label>
+              <label className="field">
+                Роль
+                <select
+                  value={role}
+                  onChange={(e) =>
+                    setRole(e.target.value as "OWNER" | "SELLER")
+                  }
+                >
+                  <option value="SELLER">Продавец</option>
+                  <option value="OWNER">Владелец</option>
+                </select>
+              </label>
+              <label className="field wide">
+                Пароль (минимум 12 символов)
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={12}
+                  maxLength={72}
+                  required
+                />
+              </label>
+            </div>
+            <div className="sale-footer">
+              <button
+                type="button"
+                className="button cancel-button"
+                onClick={() => setAccountEmployee(null)}
+              >
+                Отмена
+              </button>
+              <button className="button primary" disabled={busy}>
+                Создать доступ
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {adjustEmployee && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={() => !busy && setAdjustEmployee(null)}
+        >
+          <form
+            className="product-modal employee-modal"
+            onSubmit={saveAdjustment}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="sale-modal-head">
+              <div>
+                <p className="eyebrow">РУЧНАЯ КОРРЕКТИРОВКА</p>
+                <h2>Изменить бонусный баланс</h2>
+                <p>{adjustEmployee.fullName}</p>
+              </div>
+              <button
+                type="button"
+                className="button modal-close"
+                onClick={() => setAdjustEmployee(null)}
+              >
+                ×
+              </button>
+            </div>
+            {error && (
+              <div className="form-error product-form-error">{error}</div>
+            )}
+            <div className="product-form-grid">
+              <label className="field wide">
+                Сумма, ₸
+                <input
+                  type="number"
+                  step="0.01"
+                  value={adjustAmount || ""}
+                  onChange={(event) =>
+                    setAdjustAmount(Number(event.target.value))
+                  }
+                  placeholder="Например: 1500 или -500"
+                  required
+                  autoFocus
+                />
+              </label>
+              <label className="field wide">
+                Причина корректировки
+                <input
+                  value={adjustReason}
+                  onChange={(event) => setAdjustReason(event.target.value)}
+                  maxLength={2000}
+                  required
+                />
+              </label>
+            </div>
+            <div className="product-form-note">
+              <strong>
+                Положительная сумма увеличит бонус, отрицательная — уменьшит.
+              </strong>
+              <span>Операция сохранится в истории и журнале действий.</span>
+            </div>
+            <div className="sale-footer">
+              <button
+                type="button"
+                className="button cancel-button"
+                onClick={() => setAdjustEmployee(null)}
+              >
+                Отмена
+              </button>
+              <button
+                className="button primary"
+                disabled={busy || adjustAmount === 0 || !adjustReason.trim()}
+              >
+                {busy ? "Сохраняем…" : "Зарегистрировать"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {payEmployee && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={() => !busy && setPayEmployee(null)}
+        >
+          <form
+            className="product-modal employee-modal"
+            onSubmit={savePayment}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="sale-modal-head">
+              <div>
+                <p className="eyebrow">ФАКТИЧЕСКАЯ ВЫПЛАТА</p>
+                <h2>
+                  {payType === "BONUS"
+                    ? "Выплатить бонус"
+                    : "Выплатить зарплату"}
+                </h2>
+                <p>{payEmployee.fullName}</p>
+              </div>
+              <button
+                type="button"
+                className="button modal-close"
+                onClick={() => setPayEmployee(null)}
+              >
+                ×
+              </button>
+            </div>
+            {error && (
+              <div className="form-error product-form-error">{error}</div>
+            )}
+            <div className="product-form-grid">
+              <label className="field">
+                Сумма, ₸
+                <input
+                  type="number"
+                  min="0.01"
+                  max={
+                    payType === "BONUS"
+                      ? Number(
+                          balanceByEmployee.get(payEmployee.id)?.balance ?? 0,
+                        )
+                      : undefined
+                  }
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(Number(e.target.value))}
+                  required
+                  autoFocus
+                />
+              </label>
+              <label className="field">
+                Способ выплаты
+                <select
+                  value={method}
+                  onChange={(e) => setMethod(e.target.value as typeof method)}
+                >
+                  <option value="CASH">Наличные</option>
+                  <option value="KASPI_PAY">Kaspi Pay</option>
+                  <option value="BANK_TRANSFER">Банковский перевод</option>
+                </select>
+              </label>
+              <label className="field wide">
+                Причина
+                <input
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  maxLength={2000}
+                  required
+                />
+              </label>
+            </div>
+            <div className="sale-footer">
+              <button
+                type="button"
+                className="button cancel-button"
+                onClick={() => setPayEmployee(null)}
+              >
+                Отмена
+              </button>
+              <button className="button primary" disabled={busy || amount <= 0}>
+                Зарегистрировать выплату
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {detailEmployee && (
+        <div
+          className="modal-backdrop sale-backdrop"
+          onMouseDown={() => setDetailEmployee(null)}
+        >
+          <div
+            className="employee-history"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="sale-modal-head">
+              <div>
+                <p className="eyebrow">ФИНАНСОВАЯ ИСТОРИЯ</p>
+                <h2>{detailEmployee.fullName}</h2>
+                <p>Начисления бонусов и реальные выплаты</p>
+              </div>
+              <button
+                className="button modal-close"
+                onClick={() => setDetailEmployee(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="history-columns">
+              <section>
+                <h3>Начисления</h3>
+                {entries.map((item) => (
+                  <div className="history-entry" key={item.id}>
+                    <div>
+                      <strong>
+                        {item.type === "SALE"
+                          ? "Бонус за продажу"
+                          : item.type === "RETURN"
+                            ? "Корректировка возврата"
+                            : "Ручная корректировка"}
+                      </strong>
+                      <span>
+                        {item.reason} ·{" "}
+                        {dateTime.format(new Date(item.createdAt))}
+                      </span>
+                    </div>
+                    <strong
+                      className={
+                        item.amount >= 0 ? "positive-text" : "negative-text"
+                      }
+                    >
+                      {item.amount > 0 ? "+" : ""}
+                      {money.format(item.amount)}
+                    </strong>
+                  </div>
+                ))}
+                {!entries.length && (
+                  <div className="empty-state">Начислений нет</div>
+                )}
+              </section>
+              <section>
+                <h3>Выплаты</h3>
+                {payments.map((item) => (
+                  <div
+                    className={`history-entry ${
+                      item.reversed || item.reversalOfId ? "reversed-entry" : ""
+                    }`}
+                    key={item.id}
+                  >
+                    <div>
+                      <strong>
+                        {item.reversalOfId
+                          ? "Отмена выплаты"
+                          : item.type === "BONUS"
+                            ? "Бонус"
+                            : "Зарплата"}
+                      </strong>
+                      <span>
+                        {item.reason} · {dateTime.format(new Date(item.paidAt))}
+                      </span>
+                      {item.reversed && (
+                        <span className="negative-text">Выплата отменена</span>
+                      )}
+                    </div>
+                    <div className="payment-history-action">
+                      <strong
+                        className={item.reversalOfId ? "negative-text" : ""}
+                      >
+                        {item.reversalOfId ? "−" : ""}
+                        {money.format(item.amount)}
+                      </strong>
+                      {!item.reversed && item.reversalOfId === null && (
+                        <button
+                          disabled={busy}
+                          onClick={() => void reversePayment(item)}
+                        >
+                          Отменить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {!payments.length && (
+                  <div className="empty-state">Выплат нет</div>
+                )}
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
 }
