@@ -1,4 +1,6 @@
 export type Actor = { id: number; employeeId: number | null; role: 'OWNER' | 'SELLER'; username: string };
+export type SessionStatus = { authenticated: boolean; actor: Actor | null };
+export type StoreSettings = { name: string; phone: string | null; address: string | null; updatedAt: string };
 export type Summary = { from: string; to: string; salesRevenue: number; returns: number; netRevenue: number; discounts: number; saleCost: number; restoredCost: number; netCost: number; grossProfit: number; expenses: number; grossProfitAfterExpenses: number; bonusAccrued: number; bonusPaid: number; salaryPaid: number };
 export type ExpenseCategory = { id: number; name: string };
 export type Expense = { id: number; categoryId: number; categoryName: string; amount: number; method: 'CASH' | 'KASPI_PAY' | 'BANK_TRANSFER'; description: string; incurredAt: string; reversalOfId: number | null; reversed: boolean };
@@ -84,7 +86,13 @@ export async function logout() {
 }
 
 export const api = {
+  session: () => request<SessionStatus>('/session'),
   me: () => request<Actor>('/me'),
+  storeSettings: () => request<StoreSettings>('/settings/store'),
+  updateStoreSettings: (name: string, phone: string | null, address: string | null) =>
+    mutate<StoreSettings>('/settings/store', { name, phone, address }, 'PUT'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    mutate<void>('/settings/password', { currentPassword, newPassword }, 'PUT'),
   sales: (limit = 6) => request<Sale[]>(`/sales?limit=${limit}&offset=0`),
   sale: (id: number) => request<SaleDocument>(`/sales/${id}`),
   createReturn: (returned: NewReturn) => mutate<{ id: number }>('/returns', returned),

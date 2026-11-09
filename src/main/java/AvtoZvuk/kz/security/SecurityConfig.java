@@ -33,7 +33,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/csrf", "/api/login").permitAll()
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/csrf", "/api/login", "/api/session").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .formLogin(form -> form.loginProcessingUrl("/api/login")
