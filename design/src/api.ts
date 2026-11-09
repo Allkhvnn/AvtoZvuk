@@ -1,6 +1,11 @@
 export type Actor = { id: number; employeeId: number | null; role: 'OWNER' | 'SELLER'; username: string };
 export type SessionStatus = { authenticated: boolean; actor: Actor | null };
 export type StoreSettings = { name: string; phone: string | null; address: string | null; updatedAt: string };
+export type VehicleInput = { make: string; model: string | null; productionYear: number | null; plateNumber: string | null; notes: string | null };
+export type Vehicle = VehicleInput & { id: number };
+export type Customer = { id: number; fullName: string; phone: string; notes: string | null; active: boolean; purchaseCount: number; totalSpent: number; vehicles: string };
+export type CustomerSale = { id: number; documentNumber: string; soldAt: string; total: number; sellerName: string };
+export type CustomerDetail = { id: number; fullName: string; phone: string; notes: string | null; active: boolean; vehicles: Vehicle[]; sales: CustomerSale[] };
 export type Summary = { from: string; to: string; salesRevenue: number; returns: number; netRevenue: number; discounts: number; saleCost: number; restoredCost: number; netCost: number; grossProfit: number; expenses: number; grossProfitAfterExpenses: number; bonusAccrued: number; bonusPaid: number; salaryPaid: number };
 export type ExpenseCategory = { id: number; name: string };
 export type Expense = { id: number; categoryId: number; categoryName: string; amount: number; method: 'CASH' | 'KASPI_PAY' | 'BANK_TRANSFER'; description: string; incurredAt: string; reversalOfId: number | null; reversed: boolean };
@@ -32,6 +37,7 @@ export type AuditLog = { id: number; action: string; entityType: string; entityI
 export type NewSale = {
   requestKey: string;
   sellerId: number | null;
+  customerId: number | null;
   items: { productId: number; quantity: number; unitPrice: number; discountAmount: number }[];
   payments: { method: 'CASH' | 'KASPI_PAY'; amount: number }[];
 };
@@ -93,6 +99,14 @@ export const api = {
     mutate<StoreSettings>('/settings/store', { name, phone, address }, 'PUT'),
   changePassword: (currentPassword: string, newPassword: string) =>
     mutate<void>('/settings/password', { currentPassword, newPassword }, 'PUT'),
+  clients: () => request<Customer[]>('/clients'),
+  client: (id: number) => request<CustomerDetail>(`/clients/${id}`),
+  createClient: (fullName: string, phone: string, notes: string | null, vehicles: VehicleInput[]) =>
+    mutate<{ id: number }>('/clients', { fullName, phone, notes, vehicles }),
+  updateClient: (id: number, fullName: string, phone: string, notes: string | null, vehicles: VehicleInput[]) =>
+    mutate<void>(`/clients/${id}`, { fullName, phone, notes, vehicles }, 'PUT'),
+  clientStatus: (id: number, active: boolean, reason: string) =>
+    mutate<void>(`/clients/${id}/status`, { active, reason }, 'PUT'),
   sales: (limit = 6) => request<Sale[]>(`/sales?limit=${limit}&offset=0`),
   sale: (id: number) => request<SaleDocument>(`/sales/${id}`),
   createReturn: (returned: NewReturn) => mutate<{ id: number }>('/returns', returned),

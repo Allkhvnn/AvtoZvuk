@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { api, type Actor, type Employee, type Product, type Sale, type SaleDocument } from './api';
+import { api, type Actor, type Customer, type Employee, type Product, type Sale, type SaleDocument } from './api';
 
 type Line = { productId: number; quantity: number; discountAmount: number };
 type ReturnLine = { saleItemId: number; quantity: number; restock: boolean };
@@ -13,7 +13,9 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
   const [open, setOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [clients, setClients] = useState<Customer[]>([]);
   const [sellerId, setSellerId] = useState<number | null>(actor.employeeId);
+  const [customerId, setCustomerId] = useState<number | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [productQuery, setProductQuery] = useState('');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('CASH');
@@ -32,8 +34,8 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
 
   useEffect(() => {
     if (!open) return;
-    Promise.all([api.products(), actor.role === 'OWNER' ? api.employees() : Promise.resolve([])])
-      .then(([catalog, staff]) => { setProducts(catalog.filter(p => p.active && p.quantity > 0)); setEmployees(staff.filter(e => e.active)); })
+    Promise.all([api.products(), actor.role === 'OWNER' ? api.employees() : Promise.resolve([]), api.clients()])
+      .then(([catalog, staff, customers]) => { setProducts(catalog.filter(p => p.active && p.quantity > 0)); setEmployees(staff.filter(e => e.active)); setClients(customers.filter(c => c.active)); })
       .catch(e => setError(e.message));
   }, [open, actor.role]);
 
@@ -63,7 +65,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
     setProductQuery('');
   }
   function updateLine(id: number, patch: Partial<Line>) { setLines(current => current.map(line => line.productId === id ? { ...line, ...patch } : line)); }
-  function reset() { setLines([]); setProductQuery(''); setPaymentMode('CASH'); setCash(0); setError(''); }
+  function reset() { setLines([]); setProductQuery(''); setPaymentMode('CASH'); setCash(0); setCustomerId(null); setError(''); }
   async function openDetail(id: number) {
     setDetailLoading(true); setError('');
     try { const value = await api.sale(id); setDetail(value); setReturnLines([]); setReturnReason(''); setReturnPayment('CASH'); setReturnCash(0); }
@@ -85,7 +87,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
     setBusy(true);
     try {
       const result = await api.createSale({
-        requestKey: crypto.randomUUID(), sellerId: actor.role === 'OWNER' ? sellerId : null,
+        requestKey: crypto.randomUUID(), sellerId: actor.role === 'OWNER' ? sellerId : null, customerId,
         items: lines.map(line => ({ productId: line.productId, quantity: line.quantity, unitPrice: productById.get(line.productId)!.sellingPrice, discountAmount: line.discountAmount })),
         payments: paymentMode === 'MIXED'
           ? [{ method: 'CASH', amount: roundMoney(cash) }, { method: 'KASPI_PAY', amount: kaspi }]
@@ -106,6 +108,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
       <div className="sale-modal-head"><div><p className="eyebrow">НОВАЯ ОПЕРАЦИЯ</p><h2>Оформление продажи</h2><p>Остаток будет списан после подтверждения.</p></div><button type="button" className="button modal-close" onClick={() => setOpen(false)} aria-label="Закрыть">×</button></div>
       {error && <div className="form-error" role="alert">{error}</div>}
       {actor.role === 'OWNER' && <label className="field">Продавец<select value={sellerId ?? ''} onChange={e => setSellerId(Number(e.target.value) || null)} required><option value="">Выберите сотрудника</option>{employees.map(employee => <option key={employee.id} value={employee.id}>{employee.fullName}</option>)}</select></label>}
+      <label className="field sale-customer">Клиент (необязательно)<select value={customerId ?? ''} onChange={e => setCustomerId(Number(e.target.value) || null)}><option value="">Продажа без клиента</option>{clients.map(client => <option key={client.id} value={client.id}>{client.fullName} · {client.phone}</option>)}</select></label>
       <div className="sale-section"><div className="sale-section-title"><div><strong>Товары</strong><span>{lines.length} позиций</span></div></div><div className="product-picker"><input value={productQuery} onChange={e => setProductQuery(e.target.value)} placeholder="Поиск по названию или артикулу" aria-label="Поиск товара"/><select value="" onChange={e => addLine(Number(e.target.value))} aria-label="Добавить товар в чек"><option value="">{availableProducts.length ? 'Выберите товар — он сразу добавится в чек' : 'Товары не найдены'}</option>{availableProducts.map(product => <option key={product.id} value={product.id}>{product.name} · {product.sku} · остаток {product.quantity}</option>)}</select></div>
         <div className="sale-lines">{lines.map(line => { const product = productById.get(line.productId)!; const maxDiscount = product.sellingPrice * line.quantity; return <div className="sale-line" key={line.productId}><div className="sale-product"><strong>{product.name}</strong><span>{product.sku} · {money.format(product.sellingPrice)} · доступно {product.quantity}</span></div><label>Кол-во<input type="number" min="1" max={product.quantity} value={line.quantity} onChange={e => updateLine(line.productId, { quantity: Math.max(1, Math.min(product.quantity, Number(e.target.value))) })}/></label><label>Скидка<input type="number" min="0" max={maxDiscount} step="0.01" value={line.discountAmount} onChange={e => updateLine(line.productId, { discountAmount: Math.min(maxDiscount, Math.max(0, Number(e.target.value))) })}/></label><div className="line-total"><span>Итого</span><strong>{money.format(maxDiscount - line.discountAmount)}</strong></div><button type="button" className="remove-line" onClick={() => setLines(current => current.filter(item => item.productId !== line.productId))}>×</button></div>; })}{!lines.length && <div className="sale-empty">Выберите первый товар из списка</div>}</div>
       </div>

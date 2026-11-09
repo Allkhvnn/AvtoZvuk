@@ -32,6 +32,8 @@ public class SaleService {
         var replay = documents.replay(DocumentSupport.Kind.SALE, command.requestKey(), fingerprint);
         if (replay.isPresent()) return replay.get();
         var seller = db.one("SELECT id, bonus_rate FROM employees WHERE id = ? AND active FOR SHARE", sellerId);
+        if (command.customerId() != null)
+            db.one("SELECT id FROM customers WHERE id = ? AND active FOR SHARE", command.customerId());
         var products = stock.lockProducts(command.items().stream().map(SaleItemRequest::productId).toList(), true);
         BigDecimal total = BigDecimal.ZERO;
         for (var item : command.items()) {
@@ -42,10 +44,10 @@ public class SaleService {
         }
         DocumentSupport.bounded(total);
         long sale = db.id("""
-                INSERT INTO sales(document_number, request_key, seller_id, bonus_rate, created_by, request_fingerprint)
-                VALUES (?, ?, ?, ?, ?, ?) RETURNING id
+                INSERT INTO sales(document_number, request_key, seller_id, customer_id, bonus_rate, created_by, request_fingerprint)
+                VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
                 """, DocumentSupport.Kind.SALE.number(command.requestKey()), command.requestKey(), sellerId,
-                money(seller, "bonus_rate"), actor.id(), fingerprint);
+                command.customerId(), money(seller, "bonus_rate"), actor.id(), fingerprint);
         for (var item : command.items()) {
             var product = products.get(item.productId());
             long line = db.id("""
