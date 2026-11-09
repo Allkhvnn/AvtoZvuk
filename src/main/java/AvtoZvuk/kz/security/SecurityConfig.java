@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
@@ -33,7 +34,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/csrf", "/api/login", "/api/session").permitAll()
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/csrf", "/api/login", "/api/session", "/api/health").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .formLogin(form -> form.loginProcessingUrl("/api/login")
@@ -45,6 +46,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint((req, res, error) -> res.setStatus(HttpStatus.UNAUTHORIZED.value()))
                         .accessDeniedHandler((req, res, error) -> res.setStatus(HttpStatus.FORBIDDEN.value())))
                 .requestCache(cache -> cache.disable())
+                .addFilterBefore(new LoginRateLimitFilter(), UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 }

@@ -1,0 +1,12 @@
+.git
+.gradle
+.gradle-cache
+.idea
+backups
+build
+design/dist
+design/node_modules
+.env
+.env.production
+*.log
+

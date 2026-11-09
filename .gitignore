@@ -4,4 +4,6 @@ build/
 *.iml
 .env
 backups/
+server-backups/
+.env.production
 .gradle-cache/
