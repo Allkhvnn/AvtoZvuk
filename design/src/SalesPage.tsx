@@ -9,7 +9,7 @@ const money = new Intl.NumberFormat('ru-KZ', { style: 'currency', currency: 'KZT
 const dateTime = new Intl.DateTimeFormat('ru-KZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
-export function SalesPage({ actor, sales, query, createRequest, onCreated }: { actor: Actor; sales: Sale[]; query: string; createRequest: number; onCreated: () => Promise<void> }) {
+export function SalesPage({ actor, sales, query, createRequest, openSaleId, onSaleOpened, onCreated }: { actor: Actor; sales: Sale[]; query: string; createRequest: number; openSaleId: number | null; onSaleOpened: () => void; onCreated: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -31,6 +31,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
   const [returnCash, setReturnCash] = useState(0);
 
   useEffect(() => { if (createRequest > 0) setOpen(true); }, [createRequest]);
+  useEffect(() => { if (openSaleId !== null) void openDetail(openSaleId).finally(onSaleOpened); }, [openSaleId]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +52,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
     const product = productById.get(line.productId);
     return sum + (product ? product.sellingPrice * line.quantity - line.discountAmount : 0);
   }, 0));
-  const filtered = sales.filter(s => `${s.documentNumber} ${s.total} ${s.sellerId}`.toLowerCase().includes(query.toLowerCase()));
+  const filtered = sales.filter(s => `${s.documentNumber} ${s.total} ${s.sellerId} ${s.customerName ?? ''}`.toLowerCase().includes(query.toLowerCase()));
   const detailItems = useMemo(() => new Map(detail?.items.map(item => [item.id, item]) ?? []), [detail]);
   const returnTotal = roundMoney(returnLines.reduce((sum, line) => {
     const item = detailItems.get(line.saleItemId); if (!item || line.quantity <= 0) return sum;
@@ -102,7 +103,7 @@ export function SalesPage({ actor, sales, query, createRequest, onCreated }: { a
     <section className="sales-heading"><div><p className="eyebrow">ЕЖЕДНЕВНЫЕ ОПЕРАЦИИ</p><h1>Продажи</h1><p>Оформление и история проведённых продаж.</p></div><button className="button primary" onClick={() => { setOpen(true); setSuccess(''); }}><span className="button-plus">+</span>Новая продажа</button></section>
     {success && <div className="success-banner">{success}</div>}
     <section className="sales-kpis"><div><span>Показано операций</span><strong>{filtered.length}</strong></div><div><span>Сумма в списке</span><strong>{money.format(filtered.reduce((sum, sale) => sum + Number(sale.total), 0))}</strong></div><div><span>Текущая роль</span><strong>{actor.role === 'OWNER' ? 'Владелец' : 'Продавец'}</strong></div></section>
-    <section className="panel sales-list-panel"><div className="panel-head"><div><h2>История продаж</h2><p>{query ? `Результаты поиска: ${filtered.length}` : 'Сначала отображаются последние операции'}</p></div></div><div className="table-wrap"><table><thead><tr><th>ДОКУМЕНТ</th><th>ДАТА</th><th>ПРОДАВЕЦ</th><th>СУММА</th><th>СТАТУС</th><th></th></tr></thead><tbody>{filtered.map(sale => <tr className="clickable-row" onClick={()=>void openDetail(sale.id)} key={sale.id}><td><strong>{sale.documentNumber}</strong></td><td className="muted">{dateTime.format(new Date(sale.soldAt))}</td><td>№ {sale.sellerId}</td><td><strong>{money.format(sale.total)}</strong></td><td><span className="status">Проведена</span></td><td><button className="row-button" disabled={detailLoading}>Открыть</button></td></tr>)}</tbody></table>{!filtered.length && <div className="empty-state table-empty">Продажи не найдены</div>}</div></section>
+    <section className="panel sales-list-panel"><div className="panel-head"><div><h2>История продаж</h2><p>{query ? `Результаты поиска: ${filtered.length}` : 'Сначала отображаются последние операции'}</p></div></div><div className="table-wrap"><table><thead><tr><th>ДОКУМЕНТ</th><th>ДАТА</th><th>КЛИЕНТ</th><th>ПРОДАВЕЦ</th><th>СУММА</th><th>СТАТУС</th><th></th></tr></thead><tbody>{filtered.map(sale => <tr className="clickable-row" onClick={()=>void openDetail(sale.id)} key={sale.id}><td><strong>{sale.documentNumber}</strong></td><td className="muted">{dateTime.format(new Date(sale.soldAt))}</td><td>{sale.customerName ?? 'Без клиента'}</td><td>№ {sale.sellerId}</td><td><strong>{money.format(sale.total)}</strong></td><td><span className="status">Проведена</span></td><td><button className="row-button" disabled={detailLoading}>Открыть</button></td></tr>)}</tbody></table>{!filtered.length && <div className="empty-state table-empty">Продажи не найдены</div>}</div></section>
 
     {open && <div className="modal-backdrop sale-backdrop" onMouseDown={() => !busy && setOpen(false)}><form className="sale-modal" onSubmit={submit} onMouseDown={event => event.stopPropagation()}>
       <div className="sale-modal-head"><div><p className="eyebrow">НОВАЯ ОПЕРАЦИЯ</p><h2>Оформление продажи</h2><p>Остаток будет списан после подтверждения.</p></div><button type="button" className="button modal-close" onClick={() => setOpen(false)} aria-label="Закрыть">×</button></div>

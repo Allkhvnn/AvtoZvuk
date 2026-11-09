@@ -103,6 +103,11 @@ class KzApplicationTests {
                 List.of(new SaleItemRequest(product, 1, n("200"), n("0"))), List.of(payment("200"))));
 
         var card = customers.customer(customer);
+        assertThat(documents.sale(sale).customerName()).isEqualTo("Test client");
+        assertThat(documents.sales(100, 0)).anySatisfy(summary -> {
+            assertThat(summary.id()).isEqualTo(sale);
+            assertThat(summary.customerName()).isEqualTo("Test client");
+        });
         assertThat(card.vehicles()).singleElement().satisfies(vehicle -> {
             assertThat(vehicle.make()).isEqualTo("Toyota");
             assertThat(vehicle.plateNumber()).isEqualTo("001ABC01");

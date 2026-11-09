@@ -22,7 +22,8 @@ public class DocumentQueries {
         var actor = actors.get();
         var header = repository.saleHeader(id);
         if (!actor.owner() && !header.sellerId().equals(actor.employeeId())) throw BusinessException.forbidden();
-        return new SaleDocumentResponse(id, header.documentNumber(), header.status(), repository.saleTotal(id),
+        return new SaleDocumentResponse(id, header.documentNumber(), header.status(), header.customerId(),
+                header.customerName(), repository.saleTotal(id),
                 repository.saleBonus(id), repository.saleItems(id).stream().map(mapper::saleItem).toList(),
                 repository.salePayments(id).stream().map(mapper::payment).toList());
     }
