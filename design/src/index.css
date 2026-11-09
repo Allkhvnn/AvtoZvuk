@@ -423,6 +423,13 @@ td strong { font-weight: 700; }
 .detail-lines span { color: var(--muted); font-size: 8px; }
 .detail-total { display: flex; justify-content: space-between; padding: 18px 26px 22px; font-size: 11px; }
 .detail-total strong { font-size: 17px; }
+.inventory-detail-modal { width: min(760px, 100%); max-height: calc(100vh - 40px); overflow: auto; }
+.inventory-detail-lines { display: grid; padding: 8px 26px 22px; }
+.inventory-detail-row { display: grid; grid-template-columns: minmax(180px, 1fr) 90px 90px 110px; align-items: center; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 10px; }
+.inventory-detail-row > div { display: grid; gap: 4px; }
+.inventory-detail-row span { color: var(--muted); font-size: 8px; }
+.inventory-detail-labels { color: var(--muted); font-size: 8px; font-weight: 700; text-transform: uppercase; }
+.detail-loading { position: fixed; right: 24px; bottom: 24px; z-index: 40; padding: 10px 14px; border-radius: 9px; color: white; background: var(--sidebar); box-shadow: 0 8px 24px rgba(0,0,0,.18); font-size: 9px; font-weight: 700; }
 .warehouse-tabs { display: inline-flex; gap: 4px; margin-bottom: 16px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .warehouse-tabs button { padding: 9px 14px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; font-size: 9px; font-weight: 700; }
 .warehouse-tabs button.active { color: var(--accent-dark); background: var(--accent-soft); }
@@ -564,6 +571,9 @@ td strong { font-weight: 700; }
   .purchase-line .sale-product { grid-column: 1 / -1; }
   .purchase-line .remove-line { position: absolute; top: 10px; right: 10px; }
   .purchase-detail { min-height: 100vh; border-radius: 0; }
+  .inventory-detail-row { grid-template-columns: minmax(120px, 1fr) 65px 65px; }
+  .inventory-detail-row > :last-child { grid-column: 2 / -1; }
+  .inventory-detail-labels > :last-child { display: none; }
   .warehouse-tabs { width: 100%; overflow-x: auto; }
   .warehouse-tabs button { flex: 1 0 auto; }
   .inventory-line { position: relative; grid-template-columns: 1fr 1fr; }

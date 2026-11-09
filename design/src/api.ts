@@ -226,6 +226,22 @@ export type InventorySummary = {
   itemCount: number
   absoluteDifference: number
 }
+export type InventoryDetail = {
+  id: number
+  operationType: string
+  reason: string
+  createdAt: string
+  items: InventoryDetailItem[]
+}
+export type InventoryDetailItem = {
+  productId: number
+  name: string
+  sku: string
+  systemQuantity: number
+  actualQuantity: number
+  difference: number
+  unitCost: number | null
+}
 export type StockMovement = {
   id: number
   type: string
@@ -461,6 +477,7 @@ export const api = {
     mutate<{ id: number }>("/purchases", purchase),
   inventories: () =>
     request<InventorySummary[]>("/inventories?limit=100&offset=0"),
+  inventory: (id: number) => request<InventoryDetail>(`/inventories/${id}`),
   createInventory: (
     reason: string,
     items: {
